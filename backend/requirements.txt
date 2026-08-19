@@ -1,6 +1,7 @@
 fastapi
 uvicorn[standard]
 gunicorn
+requests
 sqlalchemy
 psycopg2-binary
 pgvector
