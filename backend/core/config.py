@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     RERANK_CONCURRENCY: int = 5
 
     # Storage & Uploads
-    STORAGE_BACKEND: str = "local" # "local", "s3", or "gcs"
+    STORAGE_BACKEND: str = "supabase" # "supabase", "local", "s3", or "gcs"
     S3_BUCKET_NAME: Optional[str] = None
     S3_REGION: str = "us-east-1"
     AWS_ACCESS_KEY_ID: Optional[str] = None
