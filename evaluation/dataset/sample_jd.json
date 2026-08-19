@@ -1,0 +1,7 @@
+{
+    "id": "jd_1",
+    "title": "Backend Engineer",
+    "description": "We need a Senior Backend Python Developer with 6+ years of experience. Must have strong Django, PostgreSQL, and AWS experience. Preferred: Fintech background.",
+    "mandatory_skills": ["Python", "Django", "PostgreSQL", "AWS"],
+    "min_experience_years": 6.0
+}

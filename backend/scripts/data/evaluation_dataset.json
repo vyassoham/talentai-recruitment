@@ -1,0 +1,84 @@
+{
+    "jobs": [
+        {
+            "id": "job_1",
+            "title": "Senior Python Engineer",
+            "raw_description": "Looking for a Senior Python Engineer with 5+ years of experience. Must know Python and Django. AWS and Postgres are highly preferred.",
+            "min_experience_years": 5.0,
+            "mandatory_skills": [{"name": "Python", "mode": "DETERMINISTIC"}, {"name": "Django", "mode": "DETERMINISTIC"}],
+            "preferred_skills": [{"name": "AWS", "mode": "SEMANTIC"}, {"name": "PostgreSQL", "mode": "SEMANTIC"}]
+        },
+        {
+            "id": "job_2",
+            "title": "Machine Learning Engineer",
+            "raw_description": "Seeking an ML Engineer with 3+ years experience. Must know Machine Learning and TensorFlow. Cloud experience is preferred.",
+            "min_experience_years": 3.0,
+            "mandatory_skills": [{"name": "Machine Learning", "mode": "DETERMINISTIC"}, {"name": "TensorFlow", "mode": "SEMANTIC"}],
+            "preferred_skills": [{"name": "AWS", "mode": "SEMANTIC"}, {"name": "GCP", "mode": "SEMANTIC"}]
+        }
+    ],
+    "candidates": [
+        {
+            "id": "cand_1",
+            "name": "Alice (Perfect Fit)",
+            "cv_text": "Experienced Backend Developer. 6 years of experience. Strong skills in Python, Django, AWS, and PostgreSQL.",
+            "total_experience_years": 6.0,
+            "extracted_skills": ["Python", "Django", "AWS", "PostgreSQL"]
+        },
+        {
+            "id": "cand_2",
+            "name": "Bob (Good Fit - Missing Preferred)",
+            "cv_text": "Backend Developer with 5.5 years of experience. I work primarily with Python and Django. I have no cloud experience.",
+            "total_experience_years": 5.5,
+            "extracted_skills": ["Python", "Django"]
+        },
+        {
+            "id": "cand_3",
+            "name": "Charlie (Ineligible - Experience)",
+            "cv_text": "Junior Python Developer. 2 years of experience building Django applications. Learning AWS.",
+            "total_experience_years": 2.0,
+            "extracted_skills": ["Python", "Django", "AWS"]
+        },
+        {
+            "id": "cand_4",
+            "name": "Diana (Ineligible - Missing Mandatory)",
+            "cv_text": "Senior Node.js Engineer. 8 years of experience. Expert in AWS and PostgreSQL. I do not know Python or Django.",
+            "total_experience_years": 8.0,
+            "extracted_skills": ["Node.js", "AWS", "PostgreSQL"]
+        },
+        {
+            "id": "cand_5",
+            "name": "Eve (Okay Fit - One Preferred)",
+            "cv_text": "Python Engineer with 7 years of experience. Specialized in Python and Django. Some experience with PostgreSQL.",
+            "total_experience_years": 7.0,
+            "extracted_skills": ["Python", "Django", "PostgreSQL"]
+        },
+        {
+            "id": "cand_6",
+            "name": "Frank (Semantic Match)",
+            "cv_text": "Data expert with 4 years building ML models using PyTorch and Pandas. I deploy on Google Cloud Platform.",
+            "total_experience_years": 4.0,
+            "extracted_skills": ["PyTorch", "Pandas", "GCP", "Machine Learning"]
+        },
+        {
+            "id": "cand_7",
+            "name": "Grace (Keyword Stuffer - Ineligible)",
+            "cv_text": "I am a new grad. 0 years experience. Keywords: Machine Learning, TensorFlow, AWS, Data Scientist, AI, PyTorch.",
+            "total_experience_years": 0.0,
+            "extracted_skills": ["Machine Learning", "TensorFlow", "AWS", "PyTorch"]
+        }
+    ],
+    "ground_truth": {
+        "job_1": {
+            "cand_1": 1.0,
+            "cand_5": 0.8,
+            "cand_2": 0.5,
+            "cand_3": 0.0,
+            "cand_4": 0.0
+        },
+        "job_2": {
+            "cand_6": 1.0,
+            "cand_7": 0.0
+        }
+    }
+}

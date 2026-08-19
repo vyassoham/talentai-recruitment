@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+pgvector
+pydantic
+pydantic-settings
+redis
+celery
+PyMuPDF
+python-docx
+openai
+pytest
+python-multipart
+PyJWT
+passlib[bcrypt]
+bcrypt

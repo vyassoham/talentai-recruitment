@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. PostgreSQL with pgvector Extension
+  # ----------------------------------------------------------------------------
+  db:
+    image: ankane/pgvector:v0.5.1
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-recruit_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-recruit_password}
+      POSTGRES_DB: ${POSTGRES_DB:-recruit_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-recruit_admin} -d ${POSTGRES_DB:-recruit_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # ----------------------------------------------------------------------------
+  # 2. Redis Message Broker & Rate Limit Store
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # ----------------------------------------------------------------------------
+  # 3. ClamAV Antivirus Daemon
+  # ----------------------------------------------------------------------------
+  clamav:
+    image: clamav/clamav:latest
+    ports:
+      - "3310:3310"
+    environment:
+      CLAMAV_NO_FRESHCLAM: "false"
+    volumes:
+      - clamavdata:/var/lib/clamav
+    restart: always
+
+  # ----------------------------------------------------------------------------
+  # 4. FastAPI REST API Backend
+  # ----------------------------------------------------------------------------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-recruit_admin}:${POSTGRES_PASSWORD:-recruit_password}@db:5432/${POSTGRES_DB:-recruit_db}
+      REDIS_URL: redis://redis:6379/0
+      QUEUE_BACKEND: celery
+      SECRET_KEY: ${SECRET_KEY:-temporary-secret-do-not-use-in-production}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      CLAMAV_ENABLED: "true"
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clamav:
+        condition: service_started
+    restart: always
+
+  # ----------------------------------------------------------------------------
+  # 5. Celery Distributed Background Worker
+  # ----------------------------------------------------------------------------
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["celery", "-A", "core.celery_app.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-recruit_admin}:${POSTGRES_PASSWORD:-recruit_password}@db:5432/${POSTGRES_DB:-recruit_db}
+      REDIS_URL: redis://redis:6379/0
+      QUEUE_BACKEND: celery
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      CLAMAV_ENABLED: "true"
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+
+  # ----------------------------------------------------------------------------
+  # 6. Next.js Recruiter Dashboard
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: always
+
+volumes:
+  pgdata:
+  redisdata:
+  clamavdata:

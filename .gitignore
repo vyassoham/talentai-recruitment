@@ -1,0 +1,48 @@
+# Environment Variables & Secrets
+.env
+*.env
+backend/.env
+frontend/.env.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Environments & Binaries
+miniconda/
+venv/
+.venv/
+env/
+pgdata/
+*.exe
+logfile*
+__pycache__/
+*.pyc
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing & Cache
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Next.js Build
+.next/
+out/
+build/
+dist/
+
+# Local Storage & Uploads
+storage/
+temp_storage/
+backend/storage/
+*.log
+
+# Misc
+.DS_Store
+*.pem
+.vscode/
+.idea/

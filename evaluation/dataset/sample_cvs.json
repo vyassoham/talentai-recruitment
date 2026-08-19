@@ -1,0 +1,20 @@
+[
+    {
+        "id": "cv_1",
+        "name": "Alice Smith",
+        "text": "Senior Backend Engineer with 7 years of experience. Expert in Python, Django REST Framework, and PostgreSQL. Deployed large scale systems on AWS. Previously worked at a major Fintech startup.",
+        "expected_rank": 1
+    },
+    {
+        "id": "cv_2",
+        "name": "Bob Jones",
+        "text": "Software Developer. 4 years experience. Primary language is Python. Have used Flask and MySQL. Hosted apps on Heroku.",
+        "expected_rank": 3
+    },
+    {
+        "id": "cv_3",
+        "name": "Charlie Brown",
+        "text": "Backend Dev. 6.5 years experience. Python and Django are my main tools. Experienced with AWS (EC2, S3) and PostgreSQL.",
+        "expected_rank": 2
+    }
+]
