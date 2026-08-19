@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Navbar } from "../components/Navbar";
+import { NetworkGuard } from "../components/NetworkGuard";
 import { JobParserSection } from "../components/JobParserSection";
 import { ResumeUploader } from "../components/ResumeUploader";
 import { CandidateSearchResults } from "../components/CandidateSearchResults";
@@ -26,7 +27,6 @@ export default function Home() {
           await api.login("admin@recruit.ai", "admin_password");
         }
       } catch (err) {
-        // Auto-seed if first time
         try {
           await api.seedAdmin();
           await api.login("admin@recruit.ai", "admin_password");
@@ -42,64 +42,66 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col antialiased">
-      {/* Top Navigation */}
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-      />
+    <NetworkGuard>
+      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col antialiased">
+        {/* Top Navigation */}
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+        />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        
-        {/* Tab Content */}
-        {activeTab === "match" && (
-          <CandidateSearchResults
-            activeJobId={activeJobId}
-            onSelectCandidate={(cand) => setSelectedCandidate(cand)}
-          />
-        )}
+        {/* Main Container */}
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+          
+          {/* Tab Content */}
+          {activeTab === "match" && (
+            <CandidateSearchResults
+              activeJobId={activeJobId}
+              onSelectCandidate={(cand) => setSelectedCandidate(cand)}
+            />
+          )}
 
-        {activeTab === "ingestion" && <ResumeUploader />}
+          {activeTab === "ingestion" && <ResumeUploader />}
 
-        {activeTab === "jobs" && (
-          <JobParserSection
-            activeJobId={activeJobId}
-            onJobParsed={handleJobParsed}
-          />
-        )}
+          {activeTab === "jobs" && (
+            <JobParserSection
+              activeJobId={activeJobId}
+              onJobParsed={handleJobParsed}
+            />
+          )}
 
-        {activeTab === "sourcing" && <PassiveSourcingTab />}
+          {activeTab === "sourcing" && <PassiveSourcingTab />}
 
-        {activeTab === "staleness" && <StalenessManagerTab />}
+          {activeTab === "staleness" && <StalenessManagerTab />}
 
-        {activeTab === "dei" && <DEIAnalyticsTab activeJobId={activeJobId} />}
+          {activeTab === "dei" && <DEIAnalyticsTab activeJobId={activeJobId} />}
 
-        {activeTab === "telemetry" && <AICostTelemetryTab />}
+          {activeTab === "telemetry" && <AICostTelemetryTab />}
 
-      </main>
+        </main>
 
-      {/* Slideover Drawer */}
-      <CandidateDetailModal
-        candidate={selectedCandidate}
-        onClose={() => setSelectedCandidate(null)}
-        onCandidateDeleted={() => setSelectedCandidate(null)}
-      />
+        {/* Slideover Drawer */}
+        <CandidateDetailModal
+          candidate={selectedCandidate}
+          onClose={() => setSelectedCandidate(null)}
+          onCandidateDeleted={() => setSelectedCandidate(null)}
+        />
 
-      {/* Minimal Footer */}
-      <footer className="border-t border-zinc-800/80 bg-zinc-950 py-6 mt-12 text-xs text-zinc-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            <span className="text-zinc-400">TalentAI Workspace</span>
-            <span className="text-zinc-600">•</span>
-            <span>Personal Edition</span>
+        {/* Minimal Footer */}
+        <footer className="border-t border-zinc-800/80 bg-zinc-950 py-6 mt-12 text-xs text-zinc-500">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span className="text-zinc-400">TalentAI Workspace</span>
+              <span className="text-zinc-600">•</span>
+              <span>Home WiFi Protected</span>
+            </div>
+            <div className="text-zinc-500 text-[11px]">
+              Supabase pgvector • Google Gemini 3.6 Flash • Upstash Redis
+            </div>
           </div>
-          <div className="text-zinc-500 text-[11px]">
-            Supabase pgvector • Google Gemini 3.6 Flash • Upstash Redis
-          </div>
-        </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </NetworkGuard>
   );
 }
