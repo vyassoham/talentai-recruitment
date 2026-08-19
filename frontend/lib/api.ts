@@ -140,10 +140,10 @@ class ApiClient {
 
   // ==================== Candidate Search & Feedback ====================
 
-  async searchCandidates(jobId: string, topK: number = 200): Promise<SearchResponse> {
+  async searchCandidates(jobId: string, topK: number = 200, query?: string): Promise<SearchResponse> {
     return this.request("/candidates/search", {
       method: "POST",
-      body: JSON.stringify({ job_id: jobId, top_k: topK }),
+      body: JSON.stringify({ job_id: jobId, top_k: topK, query: query || undefined }),
     });
   }
 

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Navbar } from "../components/Navbar";
+import { AuthModal } from "../components/AuthModal";
 import { JobParserSection } from "../components/JobParserSection";
 import { ResumeUploader } from "../components/ResumeUploader";
 import { CandidateSearchResults } from "../components/CandidateSearchResults";
@@ -18,6 +19,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("match");
   const [token, setToken] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>("1");
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateResult | null>(null);
 
@@ -33,7 +35,7 @@ export default function Home() {
       const data = await api.login(email, pass);
       setToken(data.access_token);
     } catch (err: any) {
-      alert(`Authentication failed: ${err.message}`);
+      throw err;
     }
   };
 
@@ -66,7 +68,7 @@ export default function Home() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         token={token}
-        onLogin={handleLogin}
+        onOpenAuthModal={() => setShowAuthModal(true)}
         onLogout={handleLogout}
         onSeedAdmin={handleSeedAdmin}
         isSeeding={isSeeding}
@@ -85,11 +87,10 @@ export default function Home() {
               </span>
             </div>
             <button
-              onClick={handleSeedAdmin}
-              disabled={isSeeding}
-              className="px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-medium whitespace-nowrap transition"
+              onClick={() => setShowAuthModal(true)}
+              className="px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-medium whitespace-nowrap transition cursor-pointer"
             >
-              {isSeeding ? "Connecting..." : "1-Click Sign In"}
+              Sign In
             </button>
           </div>
         )}
@@ -120,6 +121,15 @@ export default function Home() {
         {activeTab === "telemetry" && <AICostTelemetryTab />}
 
       </main>
+
+      {/* Root-Level Auth Modal (Always Centered & Never Clipped) */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onLogin={handleLogin}
+        onSeedAdmin={handleSeedAdmin}
+        isSeeding={isSeeding}
+      />
 
       {/* Slideover Drawer */}
       <CandidateDetailModal

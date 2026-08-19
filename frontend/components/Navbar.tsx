@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import {
   Sparkles,
   ShieldCheck,
@@ -22,7 +22,7 @@ interface NavbarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   token: string | null;
-  onLogin: (email: string, pass: string) => void;
+  onOpenAuthModal: () => void;
   onLogout: () => void;
   onSeedAdmin: () => void;
   isSeeding: boolean;
@@ -32,15 +32,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   token,
-  onLogin,
+  onOpenAuthModal,
   onLogout,
   onSeedAdmin,
   isSeeding
 }) => {
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [email, setEmail] = useState("admin@recruit.ai");
-  const [password, setPassword] = useState("admin_password");
-
   const navItems = [
     { id: "match", label: "Match & Search", icon: Search },
     { id: "ingestion", label: "CV Ingestion", icon: FileText },
@@ -141,7 +137,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowAuthModal(true)}
+                  onClick={onOpenAuthModal}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition cursor-pointer"
                 >
                   <Key className="w-3.5 h-3.5" />
@@ -152,7 +148,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   disabled={isSeeding}
                   className="text-xs font-medium px-2.5 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 transition"
                 >
-                  {isSeeding ? "Seeding..." : "Bootstrap"}
+                  {isSeeding ? "Connecting..." : "Bootstrap"}
                 </button>
               </div>
             )}
@@ -183,81 +179,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
       </div>
-
-      {/* Clean Auth Modal */}
-      {showAuthModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-sm p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-100">Recruiter Sign In</h3>
-                <p className="text-xs text-zinc-400">Authenticate for role-protected API endpoints</p>
-              </div>
-              <button
-                onClick={() => setShowAuthModal(false)}
-                className="text-zinc-500 hover:text-zinc-300 text-lg leading-none"
-              >
-                ×
-              </button>
-            </div>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                onLogin(email, password);
-                setShowAuthModal(false);
-              }}
-              className="space-y-3.5"
-            >
-              <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 transition font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-zinc-300 mb-1">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 transition font-mono"
-                />
-              </div>
-
-              <div className="p-2.5 bg-zinc-950 rounded-md border border-zinc-800 text-[11px] text-zinc-400">
-                Default Recruiter: <span className="font-mono text-zinc-300">admin@recruit.ai</span> / <span className="font-mono text-zinc-300">admin_password</span>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAuthModal(false)}
-                  className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 rounded-md text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition"
-                >
-                  Sign In
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </header>
   );
 };

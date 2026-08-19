@@ -9,10 +9,9 @@ import {
   ChevronDown,
   ChevronUp,
   MessageSquare,
-  ShieldCheck,
-  User,
-  Star,
-  Briefcase
+  X,
+  SlidersHorizontal,
+  Bot
 } from "lucide-react";
 import { CandidateResult, SearchResponse } from "../lib/types";
 import { api } from "../lib/api";
@@ -106,17 +105,26 @@ const DEMO_SHOWCASE_CANDIDATES: CandidateResult[] = [
   }
 ];
 
+const SUGGESTED_QUERIES = [
+  "Python developer jisko FastAPI aur PostgreSQL aata ho",
+  "Senior ML Engineer with PyTorch & pgvector experience",
+  "DevOps Engineer who knows Kubernetes & CI/CD",
+  "Frontend React developer with Next.js 14 and Tailwind",
+  "Mujhe aisa architect chahiye jisko distributed systems aur Redis aata ho"
+];
+
 export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
   activeJobId,
   onSelectCandidate
 }) => {
+  const [searchQuery, setSearchQuery] = useState(
+    "Senior Python backend developer with FastAPI, pgvector, and distributed systems experience"
+  );
   const [topK, setTopK] = useState(200);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResponse, setSearchResponse] = useState<SearchResponse | null>(null);
   const [expandedCandidate, setExpandedCandidate] = useState<number | null>(1);
-
-  // Target Profile selection
-  const [selectedRole, setSelectedRole] = useState("AI Fullstack Architect");
 
   // Feedback state
   const [feedbackCandidateId, setFeedbackCandidateId] = useState<number | null>(null);
@@ -124,16 +132,18 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
   const [feedbackComments, setFeedbackComments] = useState("");
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
-  const handleSearch = async () => {
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setIsSearching(true);
     try {
       const jobId = activeJobId || "1";
-      const res = await api.searchCandidates(jobId, topK);
+      const res = await api.searchCandidates(jobId, topK, searchQuery);
       setSearchResponse(res);
       if (res.candidates.length > 0) {
         setExpandedCandidate(res.candidates[0].candidate_id);
       }
     } catch (err: any) {
+      // Demo fallback response
       setSearchResponse({
         job_id: activeJobId || "1",
         eligible_count: DEMO_SHOWCASE_CANDIDATES.length,
@@ -177,83 +187,127 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
   return (
     <div className="space-y-6">
       
-      {/* 1. Main Action Panel (Flattened Clean Card) */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* 1. Main Natural Language Search Panel */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-4 shadow-sm">
+        
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h2 className="text-base font-semibold text-zinc-100">
-              AI Candidate Match & Semantic Search
+            <h2 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
+              <Bot className="w-4 h-4 text-indigo-400" />
+              AI Natural Language Candidate Search
             </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Execute hybrid SQL filtering, 1536-d vector cosine retrieval, and AI reranking.
+            <p className="text-xs text-zinc-400">
+              Type any custom criteria in English, Hinglish, or Hindi — Gemini AI will extract semantics and match candidates.
             </p>
           </div>
 
           <button
-            onClick={handleSearch}
-            disabled={isSearching}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition cursor-pointer"
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="self-start sm:self-auto text-xs text-zinc-400 hover:text-zinc-200 flex items-center gap-1 transition"
           >
-            {isSearching ? (
-              <>
-                <Sparkles className="w-3.5 h-3.5 animate-spin" />
-                Reranking...
-              </>
-            ) : (
-              <>
-                <Search className="w-3.5 h-3.5" />
-                Run AI Match Search
-              </>
-            )}
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            {showAdvanced ? "Hide Controls" : "Filter Controls"}
           </button>
         </div>
 
-        {/* Subtle Target Profile Chips */}
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <span className="text-xs text-zinc-400 mr-1">Target Profile:</span>
-          {["AI Fullstack Architect", "Senior Backend Python", "ML & Data Engineer", "Cloud Infrastructure"].map((role) => (
-            <button
-              key={role}
-              onClick={() => setSelectedRole(role)}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                selectedRole === role
-                  ? "bg-zinc-800 text-zinc-100 border border-zinc-700"
-                  : "bg-zinc-950 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
-              }`}
-            >
-              {role}
-            </button>
-          ))}
-        </div>
-
-        {/* Minimalist Parameter Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-zinc-800 text-xs">
-          <div className="space-y-1.5">
-            <div className="flex justify-between font-medium text-zinc-300">
-              <span>Top-K Vector Candidates</span>
-              <span className="font-mono text-zinc-100">{topK}</span>
-            </div>
+        {/* Free-form Prompt Input Form */}
+        <form onSubmit={handleSearch} className="space-y-3">
+          <div className="relative">
             <input
-              type="range"
-              min={10}
-              max={500}
-              step={10}
-              value={topK}
-              onChange={(e) => setTopK(Number(e.target.value))}
-              className="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-indigo-500"
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="e.g. Mujhe aisa candidate chahiye jisko Python, FastAPI aur Redis aata ho..."
+              className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-indigo-500 rounded-md py-2.5 pl-3.5 pr-28 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none transition"
             />
+
+            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="p-1 rounded text-zinc-500 hover:text-zinc-300"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSearching}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition cursor-pointer"
+              >
+                {isSearching ? (
+                  <>
+                    <Sparkles className="w-3 h-3 animate-spin" />
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-3 h-3" />
+                    Search
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between p-2.5 bg-zinc-950 rounded-md border border-zinc-800">
-            <span className="text-zinc-400">Rerank Parallelism</span>
-            <span className="font-mono text-xs font-medium text-zinc-200">5 Workers</span>
+          {/* Clickable Inspiration Chips (Clicking fills the input box) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] text-zinc-500">
+              <span>Quick Prompt Examples (Click to use):</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {SUGGESTED_QUERIES.map((suggestion, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setSearchQuery(suggestion)}
+                  className={`text-[11px] px-2.5 py-1 rounded transition text-left ${
+                    searchQuery === suggestion
+                      ? "bg-indigo-950/60 text-indigo-300 border border-indigo-800/60"
+                      : "bg-zinc-950 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
+                  }`}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex items-center justify-between p-2.5 bg-zinc-950 rounded-md border border-zinc-800">
-            <span className="text-zinc-400">Active Job Context</span>
-            <span className="font-mono text-xs font-medium text-zinc-200">Job #{activeJobId || "1"}</span>
-          </div>
-        </div>
+          {/* Advanced Controls Accordion */}
+          {showAdvanced && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-zinc-800/80 text-xs animate-in fade-in duration-100">
+              <div className="space-y-1">
+                <div className="flex justify-between font-medium text-zinc-400">
+                  <span>Top-K Vector Candidates</span>
+                  <span className="font-mono text-zinc-200">{topK}</span>
+                </div>
+                <input
+                  type="range"
+                  min={10}
+                  max={500}
+                  step={10}
+                  value={topK}
+                  onChange={(e) => setTopK(Number(e.target.value))}
+                  className="w-full h-1 bg-zinc-800 rounded appearance-none cursor-pointer accent-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 bg-zinc-950 rounded border border-zinc-800 text-zinc-400">
+                <span>Rerank Engine</span>
+                <span className="font-mono text-zinc-200 font-medium">Gemini 3.6 Flash</span>
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 bg-zinc-950 rounded border border-zinc-800 text-zinc-400">
+                <span>Active Job Context</span>
+                <span className="font-mono text-zinc-200 font-medium">Job #{activeJobId || "1"}</span>
+              </div>
+            </div>
+          )}
+        </form>
+
       </div>
 
       {/* 2. Telemetry Section (4-Column Minimalist KPI Grid) */}
@@ -263,7 +317,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
             Eligibility Pass
           </span>
           <span className="text-xl font-semibold font-mono text-zinc-100 block">
-            {searchResponse ? searchResponse.eligible_count : 3} Candidates
+            {searchResponse ? searchResponse.eligible_count : candidateList.length} Candidates
           </span>
         </div>
 
@@ -298,9 +352,17 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
       {/* 3. Candidate List (Clean Table / Rows with Subtle Dividers) */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
         <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-zinc-100">
-            Ranked Candidate Results ({candidateList.length})
-          </h3>
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-100">
+              Ranked Candidate Matches ({candidateList.length})
+            </h3>
+            {searchQuery && (
+              <p className="text-[11px] text-zinc-400 mt-0.5 line-clamp-1">
+                Matched against: <span className="text-zinc-300 font-mono italic">"{searchQuery}"</span>
+              </p>
+            )}
+          </div>
+
           <span className="text-xs text-zinc-400">
             Ranked by AI Match Score
           </span>
@@ -435,7 +497,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
       {/* Minimal Feedback Modal */}
       {feedbackCandidateId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-sm p-5 space-y-4 shadow-2xl">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-sm p-5 space-y-3 shadow-2xl">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
               <h3 className="text-sm font-semibold text-zinc-100">Recruiter Decision</h3>
               <button
