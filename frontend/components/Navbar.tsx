@@ -13,7 +13,6 @@ import {
   RefreshCw,
   BarChart3,
   DollarSign,
-  CheckCircle2,
   Database,
   Cpu,
   Zap
@@ -49,65 +48,60 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: "sourcing", label: "Passive Sourcing", icon: Globe },
     { id: "staleness", label: "Profile Refresh", icon: RefreshCw },
     { id: "dei", label: "DEI & Compliance", icon: BarChart3 },
-    { id: "telemetry", label: "AI Cost & Telemetry", icon: DollarSign },
+    { id: "telemetry", label: "AI Telemetry", icon: DollarSign },
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#0f172a]/95 backdrop-blur-md border-b border-slate-800 shadow-2xl">
+    <header className="sticky top-0 z-40 w-full bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Top Status Bar */}
-        <div className="flex items-center justify-between py-1.5 border-b border-slate-800/60 text-[11px] text-slate-400">
+        {/* Micro System Status Header */}
+        <div className="flex items-center justify-between py-1 border-b border-zinc-800/60 text-[11px] text-zinc-500">
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Live Production Stack
+            <span className="flex items-center gap-1.5 text-zinc-400 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Systems Operational
             </span>
-            <span className="hidden sm:inline-flex items-center gap-1 text-slate-400">
-              <Database className="w-3 h-3 text-emerald-400" />
+            <span className="hidden sm:inline-flex items-center gap-1 text-zinc-500">
+              <Database className="w-3 h-3 text-zinc-400" />
               Supabase pgvector
             </span>
-            <span className="hidden sm:inline-flex items-center gap-1 text-slate-400">
-              <Cpu className="w-3 h-3 text-indigo-400" />
+            <span className="hidden sm:inline-flex items-center gap-1 text-zinc-500">
+              <Cpu className="w-3 h-3 text-zinc-400" />
               Gemini 3.6 Flash
             </span>
-            <span className="hidden sm:inline-flex items-center gap-1 text-slate-400">
-              <Zap className="w-3 h-3 text-amber-400" />
+            <span className="hidden sm:inline-flex items-center gap-1 text-zinc-500">
+              <Zap className="w-3 h-3 text-zinc-400" />
               Upstash Redis
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-slate-400">Environment:</span>
-            <span className="font-semibold text-slate-200 uppercase text-[10px] bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-              Production (Cloud)
-            </span>
+            <span className="text-zinc-500">Region:</span>
+            <span className="font-mono text-zinc-400 text-[10px]">AWS ap-south-1</span>
           </div>
         </div>
 
-        {/* Main Nav Bar */}
-        <div className="flex items-center justify-between h-16 gap-4">
+        {/* Main Navigation Bar */}
+        <div className="flex items-center justify-between h-14 gap-4">
           
-          {/* Brand Logo */}
+          {/* Brand */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-              <Sparkles className="w-5 h-5 text-white" />
+            <div className="w-7 h-7 rounded-md bg-indigo-600 flex items-center justify-center text-white">
+              <Sparkles className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-lg text-white tracking-tight">
-                  TalentAI
-                </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-                  Enterprise
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 -mt-0.5">Autonomous Talent Intelligence</p>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm text-zinc-100 tracking-tight">
+                TalentAI
+              </span>
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                Enterprise
+              </span>
             </div>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+          {/* Unboxed Navigation Links */}
+          <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -115,10 +109,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     isActive
-                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                      : "text-slate-400 hover:text-white hover:bg-slate-800"
+                      ? "text-zinc-100 bg-zinc-800"
+                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -129,39 +123,34 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* Auth Actions */}
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {token ? (
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
-                    A
-                  </div>
-                  <div className="text-left">
-                    <span className="block text-xs font-bold text-slate-200 leading-tight">Admin Recruiter</span>
-                    <span className="block text-[10px] text-emerald-400 leading-tight">JWT Bearer Active</span>
-                  </div>
-                </div>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  Recruiter Authenticated
+                </span>
                 <button
                   onClick={onLogout}
                   title="Sign out"
-                  className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition border border-transparent hover:border-slate-700"
+                  className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 transition border border-transparent hover:border-zinc-800"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-3.5 h-3.5" />
                 </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowAuthModal(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 transition active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition cursor-pointer"
                 >
                   <Key className="w-3.5 h-3.5" />
-                  Recruiter Sign In
+                  Sign In
                 </button>
                 <button
                   onClick={onSeedAdmin}
                   disabled={isSeeding}
-                  className="text-xs font-semibold px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition"
+                  className="text-xs font-medium px-2.5 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 transition"
                 >
                   {isSeeding ? "Seeding..." : "Bootstrap"}
                 </button>
@@ -172,7 +161,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Mobile Navigation Row */}
-        <div className="lg:hidden flex items-center gap-1 overflow-x-auto pb-3 pt-1 scrollbar-none">
+        <div className="md:hidden flex items-center gap-1 overflow-x-auto pb-2.5 pt-1 scrollbar-none border-t border-zinc-800/40">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -180,13 +169,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition ${
                   isActive
-                    ? "bg-indigo-600 text-white"
-                    : "text-slate-400 hover:text-white bg-slate-900 border border-slate-800"
+                    ? "bg-zinc-800 text-zinc-100"
+                    : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-3 h-3" />
                 {item.label}
               </button>
             );
@@ -195,23 +184,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       </div>
 
-      {/* Auth Modal */}
+      {/* Clean Auth Modal */}
       {showAuthModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="bg-[#1e293b] border border-slate-700 rounded-3xl w-full max-w-md p-7 shadow-2xl space-y-5">
-            <div className="flex items-center justify-between border-b border-slate-700/60 pb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                  <Key className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">Recruiter Sign In</h3>
-                  <p className="text-xs text-slate-400">Authenticated access for TalentAI</p>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-sm p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-100">Recruiter Sign In</h3>
+                <p className="text-xs text-zinc-400">Authenticate for role-protected API endpoints</p>
               </div>
               <button
                 onClick={() => setShowAuthModal(false)}
-                className="text-slate-400 hover:text-white text-lg font-bold"
+                className="text-zinc-500 hover:text-zinc-300 text-lg leading-none"
               >
                 ×
               </button>
@@ -223,10 +207,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onLogin(email, password);
                 setShowAuthModal(false);
               }}
-              className="space-y-4"
+              className="space-y-3.5"
             >
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-medium text-zinc-300 mb-1">
                   Email Address
                 </label>
                 <input
@@ -234,12 +218,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 transition font-mono"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-medium text-zinc-300 mb-1">
                   Password
                 </label>
                 <input
@@ -247,28 +231,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 transition font-mono"
                 />
               </div>
 
-              <div className="p-3 bg-indigo-950/40 border border-indigo-800/40 rounded-xl text-[11px] text-indigo-300 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
-                <span>Pre-seeded demo credentials: <strong>admin@recruit.ai</strong> / <strong>admin_password</strong></span>
+              <div className="p-2.5 bg-zinc-950 rounded-md border border-zinc-800 text-[11px] text-zinc-400">
+                Default Recruiter: <span className="font-mono text-zinc-300">admin@recruit.ai</span> / <span className="font-mono text-zinc-300">admin_password</span>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowAuthModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+                  className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 transition"
+                  className="px-4 py-1.5 rounded-md text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition"
                 >
-                  Sign In & Authorize
+                  Sign In
                 </button>
               </div>
             </form>

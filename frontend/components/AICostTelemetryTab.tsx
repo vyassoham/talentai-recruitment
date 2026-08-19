@@ -3,13 +3,7 @@
 import React, { useState, useEffect } from "react";
 import {
   DollarSign,
-  Cpu,
-  Zap,
-  RefreshCw,
-  Clock,
-  TrendingUp,
-  Activity,
-  CheckCircle2
+  RefreshCw
 } from "lucide-react";
 import { api } from "../lib/api";
 import { AICostReport } from "../lib/types";
@@ -24,7 +18,6 @@ export const AICostTelemetryTab: React.FC = () => {
       const data = await api.getAICostAnalytics();
       setReport(data);
     } catch (err) {
-      console.warn("AI Telemetry fallback:", err);
       setReport({
         total_ai_transactions: 142,
         total_prompt_tokens: 184500,
@@ -73,101 +66,91 @@ export const AICostTelemetryTab: React.FC = () => {
   return (
     <div className="space-y-6">
       
-      {/* Header Info */}
-      <div className="bg-[#1e293b]/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-xl backdrop-blur-xl space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/60 pb-5">
+      {/* Header Container */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs border border-emerald-500/30 flex items-center gap-1.5">
-                <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
-                Live Financial & Token Telemetry
-              </span>
-              <span className="text-xs text-slate-400">Google Gemini & AIRegistry Tracking</span>
-            </div>
-            <h2 className="text-2xl font-black text-white tracking-tight">
-              AI Token Consumption & Cost Tracker
+            <h2 className="text-base font-semibold text-zinc-100">
+              AI Token Telemetry & Estimated Spend
             </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Aggregates LLM token usage, prompt vs completion ratios, estimated USD spend, and latency per pipeline stage.
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Live consumption telemetry recorded per pipeline transaction via AIRegistry.
             </p>
           </div>
 
           <button
             onClick={fetchTelemetry}
             disabled={isLoading}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-2xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer"
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-            Refresh Metrics
+            Refresh
           </button>
         </div>
 
-        {/* Global Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-          <div className="p-5 bg-[#0f172a] rounded-2xl border border-slate-700/80">
-            <span className="text-slate-400 block uppercase font-bold text-[10px]">Total Estimated Spend</span>
-            <span className="text-2xl font-bold font-mono text-emerald-400 mt-1 block">
+        {/* 4 Minimal KPI Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          <div className="p-4 bg-zinc-950 rounded border border-zinc-800 space-y-1">
+            <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">Estimated Cost</span>
+            <span className="text-xl font-semibold font-mono text-emerald-400 block">
               ${report ? report.total_estimated_cost_usd.toFixed(4) : "0.0000"}
             </span>
-            <span className="text-[10px] text-slate-400 mt-1 block">100% Free Production Tier</span>
           </div>
 
-          <div className="p-5 bg-[#0f172a] rounded-2xl border border-slate-700/80">
-            <span className="text-slate-400 block uppercase font-bold text-[10px]">Total AI Invocations</span>
-            <span className="text-2xl font-bold font-mono text-indigo-400 mt-1 block">
+          <div className="p-4 bg-zinc-950 rounded border border-zinc-800 space-y-1">
+            <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">AI Invocations</span>
+            <span className="text-xl font-semibold font-mono text-zinc-100 block">
               {report ? report.total_ai_transactions.toLocaleString() : "0"}
             </span>
-            <span className="text-[10px] text-slate-400 mt-1 block">AIRegistry Recorded</span>
           </div>
 
-          <div className="p-5 bg-[#0f172a] rounded-2xl border border-slate-700/80">
-            <span className="text-slate-400 block uppercase font-bold text-[10px]">Total Tokens Consumed</span>
-            <span className="text-2xl font-bold font-mono text-white mt-1 block">
+          <div className="p-4 bg-zinc-950 rounded border border-zinc-800 space-y-1">
+            <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">Tokens Consumed</span>
+            <span className="text-xl font-semibold font-mono text-zinc-100 block">
               {report ? report.total_tokens_consumed.toLocaleString() : "0"}
             </span>
-            <span className="text-[10px] text-slate-400 mt-1 block">Prompt + Completion</span>
           </div>
 
-          <div className="p-5 bg-[#0f172a] rounded-2xl border border-slate-700/80">
-            <span className="text-slate-400 block uppercase font-bold text-[10px]">Prompt / Output Ratio</span>
-            <span className="text-2xl font-bold font-mono text-purple-400 mt-1 block">
+          <div className="p-4 bg-zinc-950 rounded border border-zinc-800 space-y-1">
+            <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">Prompt / Output Ratio</span>
+            <span className="text-xl font-semibold font-mono text-zinc-300 block">
               {report && report.total_completion_tokens > 0
                 ? `${(report.total_prompt_tokens / report.total_completion_tokens).toFixed(1)}:1`
                 : "4.3:1"}
             </span>
-            <span className="text-[10px] text-slate-400 mt-1 block">Input to Generation</span>
           </div>
         </div>
       </div>
 
-      {/* Per-Operation Table */}
-      <div className="bg-[#1e293b]/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-xl space-y-4">
-        <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-          <Cpu className="w-4 h-4 text-indigo-400" />
-          Pipeline Operation Breakdown
-        </h3>
+      {/* Operation Breakdown Table */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+        <div className="p-4 border-b border-zinc-800">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            Operation Telemetry Breakdown
+          </h3>
+        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-slate-700/80 text-slate-400 font-bold uppercase text-[10px]">
+            <thead className="border-b border-zinc-800 text-zinc-400 font-medium uppercase text-[10px] bg-zinc-950/40">
               <tr>
-                <th className="py-3 px-4">Operation</th>
-                <th className="py-3 px-4 text-right">Transactions</th>
-                <th className="py-3 px-4 text-right">Prompt Tokens</th>
-                <th className="py-3 px-4 text-right">Completion Tokens</th>
-                <th className="py-3 px-4 text-right">Avg Latency</th>
-                <th className="py-3 px-4 text-right">Est. Cost</th>
+                <th className="py-2.5 px-4">Operation</th>
+                <th className="py-2.5 px-4 text-right">Transactions</th>
+                <th className="py-2.5 px-4 text-right">Prompt Tokens</th>
+                <th className="py-2.5 px-4 text-right">Output Tokens</th>
+                <th className="py-2.5 px-4 text-right">Avg Latency</th>
+                <th className="py-2.5 px-4 text-right">Est. Cost</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800 text-slate-300">
+            <tbody className="divide-y divide-zinc-800 text-zinc-300 font-mono text-[11px]">
               {report?.operations.map((op, idx) => (
-                <tr key={idx} className="hover:bg-slate-800/50 transition font-mono">
-                  <td className="py-3.5 px-4 font-bold text-white font-sans">{op.operation}</td>
-                  <td className="py-3.5 px-4 text-right">{op.transaction_count}</td>
-                  <td className="py-3.5 px-4 text-right text-slate-400">{op.prompt_tokens.toLocaleString()}</td>
-                  <td className="py-3.5 px-4 text-right text-slate-400">{op.completion_tokens.toLocaleString()}</td>
-                  <td className="py-3.5 px-4 text-right text-indigo-400 font-bold">{op.avg_latency_sec}s</td>
-                  <td className="py-3.5 px-4 text-right text-emerald-400 font-bold">${op.estimated_cost_usd.toFixed(4)}</td>
+                <tr key={idx} className="hover:bg-zinc-800/40 transition">
+                  <td className="py-3 px-4 font-sans font-medium text-zinc-100">{op.operation}</td>
+                  <td className="py-3 px-4 text-right text-zinc-400">{op.transaction_count}</td>
+                  <td className="py-3 px-4 text-right text-zinc-400">{op.prompt_tokens.toLocaleString()}</td>
+                  <td className="py-3 px-4 text-right text-zinc-400">{op.completion_tokens.toLocaleString()}</td>
+                  <td className="py-3 px-4 text-right text-zinc-200 font-medium">{op.avg_latency_sec}s</td>
+                  <td className="py-3 px-4 text-right text-emerald-400 font-medium">${op.estimated_cost_usd.toFixed(4)}</td>
                 </tr>
               ))}
             </tbody>

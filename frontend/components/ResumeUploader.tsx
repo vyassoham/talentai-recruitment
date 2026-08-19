@@ -7,13 +7,8 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
-  Shield,
   Trash2,
-  Clock,
-  Sparkles,
-  ShieldCheck,
-  Zap,
-  ArrowRight
+  ShieldCheck
 } from "lucide-react";
 import { api } from "../lib/api";
 
@@ -118,28 +113,24 @@ export const ResumeUploader: React.FC = () => {
   return (
     <div className="space-y-6">
       
-      {/* Header Info */}
-      <div className="bg-[#1e293b]/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-xl backdrop-blur-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/60 pb-6">
+      {/* Upload Container */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs border border-emerald-500/30 flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                ClamAV Antivirus Shield Active
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-semibold text-zinc-100">
+                Resume & CV Ingestion Pipeline
+              </h2>
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                ClamAV Active
               </span>
-              <span className="text-xs text-slate-400">PDF & DOCX Multi-Upload</span>
             </div>
-            <h2 className="text-2xl font-black text-white tracking-tight">
-              CV & Resume Ingestion Pipeline
-            </h2>
-            <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-              Asynchronous resume extraction with PDF text extraction, SHA-256 deduplication, Gemini 3.6 entity parsing, and 1536-d vector embedding generation.
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Automated PDF text extraction, SHA-256 deduplication, stream compression, and vector embedding.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400 font-medium">Max 10MB / file</span>
-          </div>
+          <span className="text-xs text-zinc-500">Max 10MB per file • PDF, DOCX</span>
         </div>
 
         {/* Drag and Drop Zone */}
@@ -157,10 +148,10 @@ export const ResumeUploader: React.FC = () => {
             }
           }}
           onClick={() => fileInputRef.current?.click()}
-          className={`mt-6 rounded-3xl border-2 border-dashed p-10 text-center cursor-pointer transition-all duration-200 ${
+          className={`rounded-lg border border-dashed p-8 text-center cursor-pointer transition-colors ${
             isDragging
-              ? "border-indigo-500 bg-indigo-500/10 scale-[1.01]"
-              : "border-slate-700 hover:border-indigo-500/80 bg-[#0f172a]/60 hover:bg-[#0f172a]"
+              ? "border-indigo-500 bg-zinc-800/50"
+              : "border-zinc-700 hover:border-zinc-600 bg-zinc-950/40 hover:bg-zinc-950"
           }`}
         >
           <input
@@ -174,79 +165,74 @@ export const ResumeUploader: React.FC = () => {
             className="hidden"
           />
 
-          <div className="w-16 h-16 rounded-2xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center mx-auto mb-4 border border-indigo-500/30 shadow-lg shadow-indigo-500/20">
-            <UploadCloud className="w-8 h-8" />
+          <div className="w-10 h-10 rounded-md bg-zinc-800 text-zinc-400 flex items-center justify-center mx-auto mb-3 border border-zinc-700">
+            <UploadCloud className="w-5 h-5" />
           </div>
 
-          <h3 className="text-base font-bold text-white mb-1">
-            Drag & Drop CV Files or Browse Device
+          <h3 className="text-sm font-medium text-zinc-200 mb-0.5">
+            Click to upload or drag and drop
           </h3>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            Upload candidate resumes in PDF or DOCX format for automated background parsing and semantic indexing.
+          <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+            Select single or batch PDF/DOCX resumes for background parsing
           </p>
         </div>
       </div>
 
-      {/* Uploaded Files Tracker */}
+      {/* Uploaded Files Table */}
       {files.length > 0 && (
-        <div className="bg-[#1e293b]/90 border border-slate-700/80 rounded-3xl p-6 shadow-xl space-y-4">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-indigo-400" />
-            Active Ingestion Tasks ({files.length})
-          </h3>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+          <div className="p-4 border-b border-zinc-800">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+              Active Ingestion Tasks ({files.length})
+            </h3>
+          </div>
 
-          <div className="space-y-3">
+          <div className="divide-y divide-zinc-800">
             {files.map((item) => (
               <div
                 key={item.id}
-                className="p-4 bg-[#0f172a] rounded-2xl border border-slate-700/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
               >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center shrink-0 border border-slate-700">
-                    <FileText className="w-5 h-5 text-indigo-400" />
-                  </div>
+                <div className="flex items-center gap-3">
+                  <FileText className="w-4 h-4 text-zinc-400 shrink-0" />
                   <div>
-                    <h4 className="text-sm font-bold text-white">
-                      {item.file.name}
-                    </h4>
-                    <p className="text-[11px] text-slate-400">
+                    <span className="font-medium text-zinc-200 block">{item.file.name}</span>
+                    <span className="text-[11px] text-zinc-500 font-mono">
                       {(item.file.size / (1024 * 1024)).toFixed(2)} MB
                       {item.candidateName && (
-                        <span className="ml-2 font-bold text-emerald-400">
-                          • Candidate: {item.candidateName}
-                        </span>
+                        <span className="text-zinc-400 ml-2">• Candidate: {item.candidateName}</span>
                       )}
-                    </p>
+                    </span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                   {item.status === "COMPLETED" && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Indexed & Saved
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-950/40 text-emerald-300 border border-emerald-800/40">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Indexed
                     </span>
                   )}
                   {item.status === "FAILED" && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">
-                      <AlertCircle className="w-4 h-4" />
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-rose-950/40 text-rose-300 border border-rose-800/40">
+                      <AlertCircle className="w-3.5 h-3.5" />
                       {item.error || "Failed"}
                     </span>
                   )}
                   {(item.status === "UPLOADING" ||
                     item.status === "QUEUED" ||
                     item.status === "PROCESSING") && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
-                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-800 text-zinc-300 border border-zinc-700">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                       {item.status}...
                     </span>
                   )}
 
                   <button
                     onClick={() => removeFile(item.id)}
-                    className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition"
+                    className="p-1 rounded text-zinc-500 hover:text-zinc-300 transition"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>

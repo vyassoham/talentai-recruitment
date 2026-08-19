@@ -12,7 +12,7 @@ import { DEIAnalyticsTab } from "../components/DEIAnalyticsTab";
 import { AICostTelemetryTab } from "../components/AICostTelemetryTab";
 import { api } from "../lib/api";
 import { CandidateResult, RequirementItem } from "../lib/types";
-import { ShieldAlert, Sparkles, CheckCircle2 } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("match");
@@ -21,7 +21,6 @@ export default function Home() {
   const [activeJobId, setActiveJobId] = useState<string | null>("1");
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateResult | null>(null);
 
-  // Initialize token from storage
   useEffect(() => {
     const savedToken = api.getToken();
     if (savedToken) {
@@ -33,9 +32,8 @@ export default function Home() {
     try {
       const data = await api.login(email, pass);
       setToken(data.access_token);
-      alert("Successfully authenticated! JWT Bearer active.");
     } catch (err: any) {
-      alert(`Login failed: ${err.message}`);
+      alert(`Authentication failed: ${err.message}`);
     }
   };
 
@@ -48,10 +46,9 @@ export default function Home() {
     setIsSeeding(true);
     try {
       const res = await api.seedAdmin();
-      alert(`Admin account active: ${res.email} / ${res.password}. Logging you in...`);
       await handleLogin(res.email, res.password);
     } catch (err: any) {
-      alert(`Admin account already ready: admin@recruit.ai / admin_password`);
+      await handleLogin("admin@recruit.ai", "admin_password");
     } finally {
       setIsSeeding(false);
     }
@@ -63,8 +60,8 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white">
-      {/* Top Navigation Bar */}
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col antialiased">
+      {/* Top Navigation */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -75,107 +72,73 @@ export default function Home() {
         isSeeding={isSeeding}
       />
 
-      {/* Main Workspace Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
-        {/* Banner if Unauthenticated */}
+        {/* Slim Standard Shadcn Inline Alert */}
         {!token && (
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-                <ShieldAlert className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="font-bold text-amber-100 block">Recruiter Authentication Available</span>
-                <span className="text-[11px] text-amber-300/80">Log in or 1-click bootstrap to manage protected candidate files and rate limits.</span>
-              </div>
-            </div>
-
+          <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-md bg-amber-950/20 border border-amber-900/40 text-amber-200/90 text-xs">
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleSeedAdmin}
-                disabled={isSeeding}
-                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition text-xs shadow-md active:scale-95"
-              >
-                {isSeeding ? "Bootstrapping..." : "1-Click Bootstrap Admin"}
-              </button>
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>
+                Sensitive endpoints require recruiter authentication. Authenticate to manage candidates and access full telemetry.
+              </span>
             </div>
+            <button
+              onClick={handleSeedAdmin}
+              disabled={isSeeding}
+              className="px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-medium whitespace-nowrap transition"
+            >
+              {isSeeding ? "Connecting..." : "1-Click Sign In"}
+            </button>
           </div>
         )}
 
-        {/* Tab 1: Match & Search */}
+        {/* Tab Content */}
         {activeTab === "match" && (
-          <div className="space-y-6">
-            <CandidateSearchResults
-              activeJobId={activeJobId}
-              onSelectCandidate={(cand) => setSelectedCandidate(cand)}
-            />
-          </div>
+          <CandidateSearchResults
+            activeJobId={activeJobId}
+            onSelectCandidate={(cand) => setSelectedCandidate(cand)}
+          />
         )}
 
-        {/* Tab 2: CV Ingestion */}
-        {activeTab === "ingestion" && (
-          <div className="space-y-6">
-            <ResumeUploader />
-          </div>
-        )}
+        {activeTab === "ingestion" && <ResumeUploader />}
 
-        {/* Tab 3: Job Requirements */}
         {activeTab === "jobs" && (
-          <div className="space-y-6">
-            <JobParserSection
-              activeJobId={activeJobId}
-              onJobParsed={handleJobParsed}
-            />
-          </div>
+          <JobParserSection
+            activeJobId={activeJobId}
+            onJobParsed={handleJobParsed}
+          />
         )}
 
-        {/* Tab 4: Passive Sourcing */}
-        {activeTab === "sourcing" && (
-          <div className="space-y-6">
-            <PassiveSourcingTab />
-          </div>
-        )}
+        {activeTab === "sourcing" && <PassiveSourcingTab />}
 
-        {/* Tab 5: Profile Staleness */}
-        {activeTab === "staleness" && (
-          <div className="space-y-6">
-            <StalenessManagerTab />
-          </div>
-        )}
+        {activeTab === "staleness" && <StalenessManagerTab />}
 
-        {/* Tab 6: DEI & Compliance */}
-        {activeTab === "dei" && (
-          <div className="space-y-6">
-            <DEIAnalyticsTab activeJobId={activeJobId} />
-          </div>
-        )}
+        {activeTab === "dei" && <DEIAnalyticsTab activeJobId={activeJobId} />}
 
-        {/* Tab 7: AI Cost & Telemetry */}
-        {activeTab === "telemetry" && (
-          <div className="space-y-6">
-            <AICostTelemetryTab />
-          </div>
-        )}
+        {activeTab === "telemetry" && <AICostTelemetryTab />}
 
       </main>
 
-      {/* Candidate Profile Slide-Over Drawer */}
+      {/* Slideover Drawer */}
       <CandidateDetailModal
         candidate={selectedCandidate}
         onClose={() => setSelectedCandidate(null)}
         onCandidateDeleted={() => setSelectedCandidate(null)}
       />
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800 bg-[#0f172a]/80 py-8 mt-16 text-center text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* Minimal Footer */}
+      <footer className="border-t border-zinc-800/80 bg-zinc-950 py-6 mt-12 text-xs text-zinc-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-            <span>TalentAI Enterprise Platform • v2.0 Production</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span className="text-zinc-400">TalentAI Enterprise Platform</span>
+            <span className="text-zinc-600">•</span>
+            <span>v2.0 Production</span>
           </div>
-          <div className="text-slate-400 text-[11px]">
-            Powered by Supabase pgvector, Google Gemini 3.6 Flash & Upstash Redis
+          <div className="text-zinc-500 text-[11px]">
+            Supabase pgvector • Google Gemini 3.6 Flash • Upstash Redis
           </div>
         </div>
       </footer>
