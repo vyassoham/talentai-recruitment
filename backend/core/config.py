@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "postgresql://recruit_admin:recruit_password@localhost:5433/recruit_db"
+    SUPABASE_URL: Optional[str] = None
+    SUPABASE_KEY: Optional[str] = None
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 5
     DB_POOL_PRE_PING: bool = True

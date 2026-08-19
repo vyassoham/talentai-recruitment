@@ -32,16 +32,20 @@ class LocalStorage(StorageInterface):
         os.makedirs(self.base_dir, exist_ok=True)
 
     def save(self, file_obj: BinaryIO, filename: str) -> str:
-        file_obj.seek(0)
-        file_hash = hashlib.sha256(file_obj.read()).hexdigest()
-        file_obj.seek(0)
+        # Optimize PDF stream to minimize disk usage
+        from services.documents.optimizer import DocumentOptimizer
+        optimized_stream, _, _ = DocumentOptimizer.optimize_pdf_stream(file_obj, filename)
+
+        optimized_stream.seek(0)
+        file_hash = hashlib.sha256(optimized_stream.read()).hexdigest()
+        optimized_stream.seek(0)
         
         extension = os.path.splitext(filename)[1]
         storage_key = f"{file_hash}{extension}"
         file_path = os.path.join(self.base_dir, storage_key)
         
         with open(file_path, "wb") as f:
-            shutil.copyfileobj(file_obj, f)
+            shutil.copyfileobj(optimized_stream, f)
             
         return storage_key
 
@@ -68,19 +72,23 @@ class SupabaseStorage(StorageInterface):
         self._local_fallback = LocalStorage()
 
     def save(self, file_obj: BinaryIO, filename: str) -> str:
-        file_obj.seek(0)
-        content = file_obj.read()
+        # Lossless PDF stream compression & stream deflation
+        from services.documents.optimizer import DocumentOptimizer
+        optimized_stream, orig_sz, opt_sz = DocumentOptimizer.optimize_pdf_stream(file_obj, filename)
+
+        optimized_stream.seek(0)
+        content = optimized_stream.read()
         file_hash = hashlib.sha256(content).hexdigest()
-        file_obj.seek(0)
+        optimized_stream.seek(0)
 
         extension = os.path.splitext(filename)[1]
         storage_key = f"{file_hash}{extension}"
 
-        # Also save locally for immediate text extraction
-        self._local_fallback.save(file_obj, filename)
-        file_obj.seek(0)
+        # Save compressed copy locally for immediate text extraction
+        self._local_fallback.save(optimized_stream, filename)
+        optimized_stream.seek(0)
 
-        # Upload to Supabase Storage via REST
+        # Upload compressed PDF to Supabase Storage via REST
         try:
             content_type = "application/pdf" if extension.lower() == ".pdf" else "application/octet-stream"
             headers = {
@@ -92,7 +100,7 @@ class SupabaseStorage(StorageInterface):
             upload_url = f"{self.supabase_url}/storage/v1/object/{self.bucket_name}/{storage_key}"
             resp = requests.post(upload_url, headers=headers, data=content, timeout=15)
             if resp.status_code in [200, 201]:
-                logger.info(f"Successfully uploaded {storage_key} to Supabase Storage bucket '{self.bucket_name}'.")
+                logger.info(f"Uploaded optimized {storage_key} ({len(content)/1024:.1f}KB) to Supabase Storage.")
             else:
                 logger.warning(f"Supabase storage upload notice ({resp.status_code}): {resp.text}")
         except Exception as e:
@@ -101,12 +109,9 @@ class SupabaseStorage(StorageInterface):
         return storage_key
 
     def get(self, storage_key: str) -> str:
-        # If local file exists, return local path for fast disk reading
         local_path = self._local_fallback.get(storage_key)
         if os.path.exists(local_path):
             return local_path
-        
-        # Otherwise return public Supabase URL
         return f"{self.supabase_url}/storage/v1/object/public/{self.bucket_name}/{storage_key}"
 
     def delete(self, storage_key: str) -> bool:
@@ -144,17 +149,20 @@ class S3Storage(StorageInterface):
             self._s3_client = None
 
     def save(self, file_obj: BinaryIO, filename: str) -> str:
-        if not self._s3_client:
-            return self._local_fallback.save(file_obj, filename)
+        from services.documents.optimizer import DocumentOptimizer
+        optimized_stream, _, _ = DocumentOptimizer.optimize_pdf_stream(file_obj, filename)
 
-        file_obj.seek(0)
-        file_hash = hashlib.sha256(file_obj.read()).hexdigest()
-        file_obj.seek(0)
+        if not self._s3_client:
+            return self._local_fallback.save(optimized_stream, filename)
+
+        optimized_stream.seek(0)
+        file_hash = hashlib.sha256(optimized_stream.read()).hexdigest()
+        optimized_stream.seek(0)
 
         extension = os.path.splitext(filename)[1]
         storage_key = f"resumes/{file_hash}{extension}"
 
-        self._s3_client.upload_fileobj(file_obj, self.bucket_name, storage_key)
+        self._s3_client.upload_fileobj(optimized_stream, self.bucket_name, storage_key)
         return storage_key
 
     def get(self, storage_key: str) -> str:
@@ -191,19 +199,22 @@ class GCSStorage(StorageInterface):
             self._gcs_client = None
 
     def save(self, file_obj: BinaryIO, filename: str) -> str:
-        if not self._gcs_client:
-            return self._local_fallback.save(file_obj, filename)
+        from services.documents.optimizer import DocumentOptimizer
+        optimized_stream, _, _ = DocumentOptimizer.optimize_pdf_stream(file_obj, filename)
 
-        file_obj.seek(0)
-        file_hash = hashlib.sha256(file_obj.read()).hexdigest()
-        file_obj.seek(0)
+        if not self._gcs_client:
+            return self._local_fallback.save(optimized_stream, filename)
+
+        optimized_stream.seek(0)
+        file_hash = hashlib.sha256(optimized_stream.read()).hexdigest()
+        optimized_stream.seek(0)
 
         extension = os.path.splitext(filename)[1]
         storage_key = f"resumes/{file_hash}{extension}"
 
         bucket = self._gcs_client.bucket(self.bucket_name)
         blob = bucket.blob(storage_key)
-        blob.upload_from_file(file_obj)
+        blob.upload_from_file(optimized_stream)
         return storage_key
 
     def get(self, storage_key: str) -> str:

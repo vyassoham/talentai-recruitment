@@ -1,6 +1,6 @@
 import io
 import pytest
-from core.storage import LocalStorage, S3Storage, GCSStorage, get_storage_provider
+from core.storage import LocalStorage, SupabaseStorage, S3Storage, GCSStorage, get_storage_provider
 from core.security import SecurityUtils
 from core.config import settings
 
@@ -21,7 +21,7 @@ def test_local_storage_crud():
 def test_storage_factory_fallback():
     provider = get_storage_provider()
     assert provider is not None
-    assert isinstance(provider, (LocalStorage, S3Storage, GCSStorage))
+    assert isinstance(provider, (LocalStorage, SupabaseStorage, S3Storage, GCSStorage))
 
 def test_clamav_scanner_clean_file():
     content = b"Clean PDF Content"
