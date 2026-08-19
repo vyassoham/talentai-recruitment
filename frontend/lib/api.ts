@@ -17,6 +17,10 @@ class ApiClient {
   constructor() {
     if (typeof window !== "undefined") {
       this.token = localStorage.getItem("talentai_jwt_token");
+      // Silently auto-authenticate if not present
+      if (!this.token) {
+        this.login("admin@recruit.ai", "admin_password").catch(() => {});
+      }
     }
   }
 

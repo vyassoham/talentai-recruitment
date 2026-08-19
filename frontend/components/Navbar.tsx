@@ -3,9 +3,6 @@
 import React from "react";
 import {
   Sparkles,
-  ShieldCheck,
-  Key,
-  LogOut,
   Layers,
   FileText,
   Search,
@@ -21,21 +18,11 @@ import {
 interface NavbarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  token: string | null;
-  onOpenAuthModal: () => void;
-  onLogout: () => void;
-  onSeedAdmin: () => void;
-  isSeeding: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
-  setActiveTab,
-  token,
-  onOpenAuthModal,
-  onLogout,
-  onSeedAdmin,
-  isSeeding
+  setActiveTab
 }) => {
   const navItems = [
     { id: "match", label: "Match & Search", icon: Search },
@@ -56,7 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5 text-zinc-400 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              Systems Operational
+              All Systems Operational
             </span>
             <span className="hidden sm:inline-flex items-center gap-1 text-zinc-500">
               <Database className="w-3 h-3 text-zinc-400" />
@@ -73,7 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500">Region:</span>
+            <span className="text-zinc-500">Cloud Region:</span>
             <span className="font-mono text-zinc-400 text-[10px]">AWS ap-south-1</span>
           </div>
         </div>
@@ -91,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 TalentAI
               </span>
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                Enterprise
+                Personal Workspace
               </span>
             </div>
           </div>
@@ -118,40 +105,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             })}
           </nav>
 
-          {/* Auth Actions */}
+          {/* Live Indicator */}
           <div className="flex items-center gap-2 shrink-0">
-            {token ? (
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  Recruiter Authenticated
-                </span>
-                <button
-                  onClick={onLogout}
-                  title="Sign out"
-                  className="p-1.5 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900 transition border border-transparent hover:border-zinc-800"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={onOpenAuthModal}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition cursor-pointer"
-                >
-                  <Key className="w-3.5 h-3.5" />
-                  Sign In
-                </button>
-                <button
-                  onClick={onSeedAdmin}
-                  disabled={isSeeding}
-                  className="text-xs font-medium px-2.5 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800 transition"
-                >
-                  {isSeeding ? "Connecting..." : "Bootstrap"}
-                </button>
-              </div>
-            )}
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Admin Mode Active
+            </span>
           </div>
 
         </div>
