@@ -9,7 +9,7 @@ import {
   RequirementItem
 } from "./types";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const BASE_URL = "https://talentai-recruitment.onrender.com/api/v1";
 
 class ApiClient {
   private token: string | null = null;
@@ -211,3 +211,4 @@ class ApiClient {
 }
 
 export const api = new ApiClient();
+
