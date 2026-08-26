@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Sparkles,
   Layers,
@@ -12,7 +12,8 @@ import {
   DollarSign,
   Database,
   Cpu,
-  Zap
+  Zap,
+  Users
 } from "lucide-react";
 
 interface NavbarProps {
@@ -24,6 +25,31 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab
 }) => {
+  const [dbCount, setDbCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!url || !key) return;
+        
+        const res = await fetch(`${url}/rest/v1/candidates?select=id`, {
+          headers: {
+            "apikey": key,
+            "Prefer": "count=exact",
+            "Range-Unit": "items",
+            "Range": "0-0"
+          }
+        });
+        const countStr = res.headers.get("Content-Range")?.split("/")?.[1];
+        if (countStr) setDbCount(parseInt(countStr));
+      } catch (err) {}
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 5000);
+    return () => clearInterval(interval);
+  }, []);
   const navItems = [
     { id: "match", label: "Match & Search", icon: Search },
     { id: "ingestion", label: "CV Ingestion", icon: FileText },
@@ -105,8 +131,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             })}
           </nav>
 
-          {/* Live Indicator */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Live Indicator & Count */}
+          <div className="flex items-center gap-3 shrink-0">
+            {dbCount !== null && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                <Users className="w-3.5 h-3.5" />
+                {dbCount.toLocaleString()} Candidates
+              </span>
+            )}
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               Admin Mode Active
