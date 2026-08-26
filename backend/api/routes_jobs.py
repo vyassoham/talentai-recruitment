@@ -11,29 +11,28 @@ from services.jobs.job_service import background_process_jd
 router = APIRouter()
 
 class ParseJobRequest(BaseModel):
-    job_description: str = Field(
-        ..., 
-        min_length=10, 
-        max_length=50000, 
-        description="Raw Job Description text (bounded between 10 and 50,000 chars)"
-    )
+    raw_description: str = Field(...)
+    title: str = ""
+    min_experience_years: float = 0.0
 
-@router.post("/jobs/parse", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/jobs/parse")
 def parse_job(
     request: ParseJobRequest, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("RECRUITER")),
-    _rate_check = Depends(rate_limit(max_requests=15, window_seconds=60))
+    current_user: User = Depends(require_role("RECRUITER"))
 ):
     try:
-        # Enqueue the job immediately
-        bg_job_id = queue_client.enqueue(
-            job_type="JD_PARSING",
-            payload={"job_description": request.job_description},
-            task_func=background_process_jd,
-            raw_description=request.job_description
-        )
-        return {"status": "ACCEPTED", "job_id": bg_job_id}
+        from services.jobs.job_service import JobService
+        svc = JobService(db)
+        job = svc.process_raw_jd(request.raw_description)
+        
+        reqs = []
+        for m in (job.mandatory_skills or []):
+            reqs.append({"name": m.get("canonical_skill_name"), "type": "MANDATORY", "weight": 1.0})
+        for p in (job.preferred_skills or []):
+            reqs.append({"name": p.get("canonical_skill_name"), "type": "PREFERRED", "weight": 0.5})
+            
+        return {"status": "COMPLETED", "job_id": str(job.id), "requirements": reqs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -75,3 +74,4 @@ def retry_job(
     if not success:
         raise HTTPException(status_code=500, detail="Failed to enqueue retry")
     return {"status": "RETRY_ACCEPTED", "job_id": job_id}
+
