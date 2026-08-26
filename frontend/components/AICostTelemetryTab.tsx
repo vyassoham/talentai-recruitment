@@ -67,8 +67,8 @@ export const AICostTelemetryTab: React.FC = () => {
     <div className="space-y-6">
       
       {/* Header Container */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div>
             <h2 className="text-base font-semibold text-zinc-100">
               AI Token Telemetry & Estimated Spend
@@ -90,28 +90,28 @@ export const AICostTelemetryTab: React.FC = () => {
 
         {/* 4 Minimal KPI Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-          <div className="p-4 bg-zinc-950 rounded border border-zinc-800 space-y-1">
+          <div className="p-4 bg-transparent rounded border border-white/10 space-y-1">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">Estimated Cost</span>
             <span className="text-xl font-semibold font-mono text-emerald-400 block">
               ${report ? report.total_estimated_cost_usd.toFixed(4) : "0.0000"}
             </span>
           </div>
 
-          <div className="p-4 bg-zinc-950 rounded border border-zinc-800 space-y-1">
+          <div className="p-4 bg-transparent rounded border border-white/10 space-y-1">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">AI Invocations</span>
             <span className="text-xl font-semibold font-mono text-zinc-100 block">
               {report ? report.total_ai_transactions.toLocaleString() : "0"}
             </span>
           </div>
 
-          <div className="p-4 bg-zinc-950 rounded border border-zinc-800 space-y-1">
+          <div className="p-4 bg-transparent rounded border border-white/10 space-y-1">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">Tokens Consumed</span>
             <span className="text-xl font-semibold font-mono text-zinc-100 block">
               {report ? report.total_tokens_consumed.toLocaleString() : "0"}
             </span>
           </div>
 
-          <div className="p-4 bg-zinc-950 rounded border border-zinc-800 space-y-1">
+          <div className="p-4 bg-transparent rounded border border-white/10 space-y-1">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">Prompt / Output Ratio</span>
             <span className="text-xl font-semibold font-mono text-zinc-300 block">
               {report && report.total_completion_tokens > 0
@@ -123,8 +123,8 @@ export const AICostTelemetryTab: React.FC = () => {
       </div>
 
       {/* Operation Breakdown Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-        <div className="p-4 border-b border-zinc-800">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg overflow-hidden">
+        <div className="p-4 border-b border-white/10">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
             Operation Telemetry Breakdown
           </h3>
@@ -132,7 +132,7 @@ export const AICostTelemetryTab: React.FC = () => {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-zinc-800 text-zinc-400 font-medium uppercase text-[10px] bg-zinc-950/40">
+            <thead className="border-b border-white/10 text-zinc-400 font-medium uppercase text-[10px] bg-transparent/40">
               <tr>
                 <th className="py-2.5 px-4">Operation</th>
                 <th className="py-2.5 px-4 text-right">Transactions</th>

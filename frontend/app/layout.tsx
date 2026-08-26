@@ -1,5 +1,8 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "TalentAI Enterprise — Next-Gen AI Recruitment Platform",
@@ -12,8 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-slate-50 text-slate-900 antialiased selection:bg-indigo-500 selection:text-white">
+    <html lang="en" className={`${inter.variable} font-sans`}>
+      <body className="min-h-screen bg-[#0A0A0A] text-white antialiased selection:bg-indigo-500 selection:text-white">
         {children}
       </body>
     </html>

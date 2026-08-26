@@ -61,8 +61,8 @@ export const JobParserSection: React.FC<JobParserSectionProps> = ({
     <div className="space-y-6">
       
       {/* Form Container */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div>
             <h2 className="text-base font-semibold text-zinc-100">
               Job Description Parser & Criteria Normalizer
@@ -101,7 +101,7 @@ export const JobParserSection: React.FC<JobParserSectionProps> = ({
               type="text"
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 font-medium"
+              className="w-full bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner rounded-md px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 font-medium"
             />
           </div>
 
@@ -116,7 +116,7 @@ export const JobParserSection: React.FC<JobParserSectionProps> = ({
               step={0.5}
               value={minExperience}
               onChange={(e) => setMinExperience(Number(e.target.value))}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 font-mono"
+              className="w-full bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner rounded-md px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 font-mono"
             />
           </div>
         </div>
@@ -129,12 +129,12 @@ export const JobParserSection: React.FC<JobParserSectionProps> = ({
             rows={6}
             value={jobDescription}
             onChange={(e) => setJobDescription(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-md p-3 text-xs text-zinc-200 focus:outline-none focus:border-zinc-700 font-mono leading-relaxed"
+            className="w-full bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner rounded-md p-3 text-xs text-zinc-200 focus:outline-none focus:border-zinc-700 font-mono leading-relaxed"
           />
         </div>
 
         {statusMsg && (
-          <div className="p-3 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-300 text-xs flex items-center gap-2">
+          <div className="p-3 rounded-md bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner text-zinc-300 text-xs flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
             <span>{statusMsg}</span>
           </div>
@@ -143,7 +143,7 @@ export const JobParserSection: React.FC<JobParserSectionProps> = ({
 
       {/* Extracted Requirements Grid */}
       {parsedRequirements.length > 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-4">
+        <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg p-6 space-y-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
             <Layers className="w-3.5 h-3.5" />
             Extracted Criteria ({parsedRequirements.length})
@@ -153,7 +153,7 @@ export const JobParserSection: React.FC<JobParserSectionProps> = ({
             {parsedRequirements.map((req, idx) => (
               <div
                 key={idx}
-                className="p-3 bg-zinc-950 rounded border border-zinc-800 flex items-center justify-between text-xs"
+                className="p-3 bg-transparent rounded border border-white/10 flex items-center justify-between text-xs"
               >
                 <span className="font-medium text-zinc-200">{req.name}</span>
                 <span

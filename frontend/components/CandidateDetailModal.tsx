@@ -43,10 +43,10 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-sm flex justify-end animate-in fade-in duration-150">
-      <div className="w-full max-w-xl bg-zinc-900 border-l border-zinc-800 h-full overflow-y-auto shadow-2xl flex flex-col">
+      <div className="w-full max-w-xl bg-white/5 backdrop-blur-md border-l border-white/10 h-full overflow-y-auto shadow-2xl flex flex-col">
         
         {/* Header */}
-        <div className="p-5 border-b border-zinc-800 sticky top-0 bg-zinc-900/95 backdrop-blur-sm z-10 flex items-center justify-between">
+        <div className="p-5 border-b border-white/10 sticky top-0 bg-white/5 backdrop-blur-md/95 backdrop-blur-sm z-10 flex items-center justify-between">
           <div>
             <h3 className="text-base font-semibold text-zinc-100">
               {candidate.name || `Candidate #${candidate.candidate_id}`}
@@ -78,15 +78,15 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
           
           {/* Stats Grid */}
           <div className="grid grid-cols-3 gap-2.5">
-            <div className="p-3 bg-zinc-950 rounded border border-zinc-800">
+            <div className="p-3 bg-transparent rounded border border-white/10">
               <span className="text-zinc-500 block text-[10px] uppercase font-medium">Match Score</span>
               <span className="text-lg font-semibold font-mono text-emerald-400 mt-0.5 block">{scorePct}%</span>
             </div>
-            <div className="p-3 bg-zinc-950 rounded border border-zinc-800">
+            <div className="p-3 bg-transparent rounded border border-white/10">
               <span className="text-zinc-500 block text-[10px] uppercase font-medium">Experience</span>
               <span className="text-lg font-semibold font-mono text-zinc-100 mt-0.5 block">{candidate.total_experience_years || 5}+ Yrs</span>
             </div>
-            <div className="p-3 bg-zinc-950 rounded border border-zinc-800">
+            <div className="p-3 bg-transparent rounded border border-white/10">
               <span className="text-zinc-500 block text-[10px] uppercase font-medium">Eligibility</span>
               <span className="text-xs font-semibold text-indigo-400 mt-1 block">PASS</span>
             </div>
@@ -100,7 +100,7 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
               </span>
               <div className="space-y-1.5">
                 {candidate.match_reasons.map((reason, idx) => (
-                  <div key={idx} className="p-2.5 bg-zinc-950 rounded border border-zinc-800 text-zinc-300">
+                  <div key={idx} className="p-2.5 bg-transparent rounded border border-white/10 text-zinc-300">
                     • {reason}
                   </div>
                 ))}
@@ -117,7 +117,7 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
               </span>
               <div className="space-y-2">
                 {candidate.evaluations.map((ev, idx) => (
-                  <div key={idx} className="p-3 bg-zinc-950 rounded border border-zinc-800 space-y-1.5">
+                  <div key={idx} className="p-3 bg-transparent rounded border border-white/10 space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-zinc-200">{ev.requirement}</span>
                       <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-950/40 text-emerald-300 border border-emerald-800/40">
@@ -125,7 +125,7 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
                       </span>
                     </div>
                     {ev.evidence_quote && (
-                      <p className="p-2 bg-zinc-900 rounded border border-zinc-800 text-zinc-400 font-mono text-[11px]">
+                      <p className="p-2 bg-white/5 backdrop-blur-md rounded border border-white/10 text-zinc-400 font-mono text-[11px]">
                         "{ev.evidence_quote}"
                       </p>
                     )}
@@ -140,7 +140,7 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
         {/* Delete Confirmation */}
         {showConfirmDelete && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-xs p-5 space-y-3 shadow-2xl">
+            <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg w-full max-w-xs p-5 space-y-3 shadow-2xl">
               <div className="flex items-center gap-2 text-rose-400">
                 <AlertTriangle className="w-4 h-4" />
                 <h4 className="font-semibold text-sm text-zinc-100">Confirm Deletion</h4>

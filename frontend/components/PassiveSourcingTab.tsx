@@ -81,8 +81,8 @@ export const PassiveSourcingTab: React.FC = () => {
     <div className="space-y-6">
       
       {/* Sourcing Form Container */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div>
             <h2 className="text-base font-semibold text-zinc-100">
               Passive Talent Sourcing & Web Discovery
@@ -93,7 +93,7 @@ export const PassiveSourcingTab: React.FC = () => {
           </div>
 
           {/* Platform Toggle */}
-          <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-md border border-zinc-800">
+          <div className="flex items-center gap-1 bg-transparent p-1 rounded-md border border-white/10">
             <button
               onClick={() => setPlatform("github")}
               className={`px-3 py-1 rounded text-xs font-medium transition ${
@@ -129,7 +129,7 @@ export const PassiveSourcingTab: React.FC = () => {
                   type="text"
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700"
+                  className="w-full bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner rounded-md px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700"
                 />
               </div>
 
@@ -141,7 +141,7 @@ export const PassiveSourcingTab: React.FC = () => {
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700"
+                  className="w-full bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner rounded-md px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700"
                 />
               </div>
 
@@ -154,7 +154,7 @@ export const PassiveSourcingTab: React.FC = () => {
                   min={1}
                   value={minRepos}
                   onChange={(e) => setMinRepos(Number(e.target.value))}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 font-mono"
+                  className="w-full bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner rounded-md px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 font-mono"
                 />
               </div>
             </>
@@ -167,7 +167,7 @@ export const PassiveSourcingTab: React.FC = () => {
                 type="text"
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700"
+                className="w-full bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner rounded-md px-3 py-2 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700"
               />
             </div>
           )}
@@ -195,7 +195,7 @@ export const PassiveSourcingTab: React.FC = () => {
         </div>
 
         {ingestMsg && (
-          <div className="p-3 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-300 text-xs flex items-center gap-2">
+          <div className="p-3 rounded-md bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner text-zinc-300 text-xs flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
             <span>{ingestMsg}</span>
           </div>
@@ -204,8 +204,8 @@ export const PassiveSourcingTab: React.FC = () => {
 
       {/* Discovered Candidates Grid */}
       {results.length > 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-4">
-          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg p-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
               Discovered Profiles ({results.length})
             </h3>
@@ -224,7 +224,7 @@ export const PassiveSourcingTab: React.FC = () => {
             {results.map((c, idx) => (
               <div
                 key={idx}
-                className="p-4 bg-zinc-950 rounded border border-zinc-800 space-y-2.5"
+                className="p-4 bg-transparent rounded border border-white/10 space-y-2.5"
               >
                 <div className="flex items-center justify-between">
                   <div>

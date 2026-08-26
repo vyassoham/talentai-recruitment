@@ -6,6 +6,7 @@ from api.routes_jobs import router as jobs_router
 from api.routes_search import router as search_router
 from api.routes_analytics import router as analytics_router
 from api.routes_sourcing import router as sourcing_router
+from api.routes_count import router as count_router
 from api.routes_auth import router as auth_router
 from core.database import engine, Base
 from core.config import settings
@@ -40,6 +41,7 @@ app.include_router(jobs_router, prefix="/api/v1")
 app.include_router(search_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(sourcing_router, prefix="/api/v1")
+app.include_router(count_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 
 @app.get("/health")

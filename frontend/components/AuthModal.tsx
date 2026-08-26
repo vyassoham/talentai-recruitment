@@ -60,10 +60,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-150">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-sm p-6 shadow-2xl space-y-4 my-auto relative">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg w-full max-w-sm p-6 shadow-2xl space-y-4 my-auto relative">
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-md bg-indigo-600 flex items-center justify-center text-white">
               <Key className="w-4 h-4" />
@@ -117,7 +117,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 transition font-mono"
+              className="w-full bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner rounded-md px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 transition font-mono"
             />
           </div>
 
@@ -130,15 +130,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 transition font-mono"
+              className="w-full bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner rounded-md px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700 transition font-mono"
             />
           </div>
 
-          <div className="p-2 bg-zinc-950 rounded border border-zinc-800/80 text-[11px] text-zinc-400">
+          <div className="p-2 bg-transparent rounded border border-white/10/80 text-[11px] text-zinc-400">
             Credentials: <span className="text-zinc-200 font-mono">admin@recruit.ai</span> / <span className="text-zinc-200 font-mono">admin_password</span>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
             <button
               type="button"
               onClick={onClose}

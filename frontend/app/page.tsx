@@ -43,7 +43,11 @@ export default function Home() {
 
   return (
     <NetworkGuard>
-      <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col antialiased">
+      <div className="min-h-screen bg-[#0A0A0A] text-zinc-100 flex flex-col antialiased relative overflow-hidden">
+        {/* Ambient Background Gradients */}
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none opacity-50" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-emerald-600/10 rounded-full blur-[100px] pointer-events-none opacity-40" />
+
         {/* Top Navigation */}
         <Navbar
           activeTab={activeTab}
@@ -51,7 +55,7 @@ export default function Home() {
         />
 
         {/* Main Container */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 relative z-10">
           
           {/* Tab Content */}
           {activeTab === "match" && (
@@ -88,7 +92,7 @@ export default function Home() {
         />
 
         {/* Minimal Footer */}
-        <footer className="border-t border-zinc-800/80 bg-zinc-950 py-6 mt-12 text-xs text-zinc-500">
+        <footer className="border-t border-white/10 bg-[#0A0A0A]/80 backdrop-blur-md py-6 mt-12 text-xs text-zinc-500 relative z-10">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>

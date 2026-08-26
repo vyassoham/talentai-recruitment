@@ -188,7 +188,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
     <div className="space-y-6">
       
       {/* 1. Main Natural Language Search Panel */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-4 shadow-sm">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg p-6 space-y-4 shadow-sm">
         
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
@@ -219,7 +219,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="e.g. Mujhe aisa candidate chahiye jisko Python, FastAPI aur Redis aata ho..."
-              className="w-full bg-zinc-950 border border-zinc-800 hover:border-zinc-700 focus:border-indigo-500 rounded-md py-2.5 pl-3.5 pr-28 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none transition"
+              className="w-full bg-black/20 border border-white/5 backdrop-blur-sm hover:border-zinc-700 focus:border-indigo-500 rounded-md py-2.5 pl-3.5 pr-28 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none transition"
             />
 
             <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
@@ -267,7 +267,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
                   className={`text-[11px] px-2.5 py-1 rounded transition text-left ${
                     searchQuery === suggestion
                       ? "bg-indigo-950/60 text-indigo-300 border border-indigo-800/60"
-                      : "bg-zinc-950 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
+                      : "bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10 transition-all duration-300"
                   }`}
                 >
                   {suggestion}
@@ -278,7 +278,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
 
           {/* Advanced Controls Accordion */}
           {showAdvanced && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-zinc-800/80 text-xs animate-in fade-in duration-100">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-white/10/80 text-xs animate-in fade-in duration-100">
               <div className="space-y-1">
                 <div className="flex justify-between font-medium text-zinc-400">
                   <span>Top-K Vector Candidates</span>
@@ -295,12 +295,12 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
                 />
               </div>
 
-              <div className="flex items-center justify-between p-2.5 bg-zinc-950 rounded border border-zinc-800 text-zinc-400">
+              <div className="flex items-center justify-between p-2.5 bg-transparent rounded border border-white/10 text-zinc-400">
                 <span>Rerank Engine</span>
                 <span className="font-mono text-zinc-200 font-medium">Gemini 3.6 Flash</span>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 bg-zinc-950 rounded border border-zinc-800 text-zinc-400">
+              <div className="flex items-center justify-between p-2.5 bg-transparent rounded border border-white/10 text-zinc-400">
                 <span>Active Job Context</span>
                 <span className="font-mono text-zinc-200 font-medium">Job #{activeJobId || "1"}</span>
               </div>
@@ -312,46 +312,46 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
 
       {/* 2. Telemetry Section (4-Column Minimalist KPI Grid) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-1">
+        <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg p-4 space-y-1">
           <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">
             Eligibility Pass
           </span>
-          <span className="text-xl font-semibold font-mono text-zinc-100 block">
+          <span className="text-2xl font-semibold font-mono text-white block drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">
             {searchResponse ? searchResponse.eligible_count : candidateList.length} Candidates
           </span>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-1">
+        <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg p-4 space-y-1">
           <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">
             Retrieval Time
           </span>
-          <span className="text-xl font-semibold font-mono text-zinc-100 block">
+          <span className="text-2xl font-semibold font-mono text-white block drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">
             {searchResponse?.telemetry?.retrieval_ranking_latency_sec || "0.042"}s
           </span>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-1">
+        <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg p-4 space-y-1">
           <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">
             AI Rerank Latency
           </span>
-          <span className="text-xl font-semibold font-mono text-zinc-100 block">
+          <span className="text-2xl font-semibold font-mono text-white block drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">
             {searchResponse?.telemetry?.rerank_latency_sec || "0.315"}s
           </span>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-1">
+        <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg p-4 space-y-1">
           <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">
             Total Pipeline Time
           </span>
-          <span className="text-xl font-semibold font-mono text-indigo-400 block">
+          <span className="text-2xl font-semibold font-mono text-indigo-300 block drop-shadow-[0_0_10px_rgba(99,102,241,0.6)]">
             {searchResponse?.telemetry?.total_search_latency_sec || "0.357"}s
           </span>
         </div>
       </div>
 
       {/* 3. Candidate List (Clean Table / Rows with Subtle Dividers) */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-        <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg overflow-hidden">
+        <div className="p-4 border-b border-white/10 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-zinc-100">
               Ranked Candidate Matches ({candidateList.length})
@@ -374,7 +374,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
             const scorePct = Math.round((cand.final_score || cand.composite_score || 0.9) * 100);
 
             return (
-              <div key={cand.candidate_id} className="transition-colors hover:bg-zinc-900/60">
+              <div key={cand.candidate_id} className="transition-colors hover:bg-white/5 backdrop-blur-md/60">
                 
                 {/* Main Row */}
                 <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -386,7 +386,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
                         #{index + 1}
                       </span>
                       <div className="px-2.5 py-1 rounded bg-zinc-800 border border-zinc-700 text-center font-mono">
-                        <span className="text-xs font-semibold text-emerald-400">{scorePct}%</span>
+                        <span className="text-xs font-bold text-emerald-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">{scorePct}%</span>
                       </div>
                     </div>
 
@@ -396,7 +396,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
                         <h4 className="font-medium text-sm text-zinc-100">
                           {cand.name}
                         </h4>
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-950/40 text-emerald-300 border border-emerald-800/40">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
                           Eligible
                         </span>
                       </div>
@@ -410,7 +410,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => onSelectCandidate(cand)}
-                      className="px-2.5 py-1.5 rounded-md text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition flex items-center gap-1.5"
+                      className="px-2.5 py-1.5 rounded-md text-xs font-medium text-zinc-300 bg-white/10 hover:bg-white/20 hover:scale-[1.02] transition flex items-center gap-1.5"
                     >
                       <ExternalLink className="w-3 h-3 text-zinc-400" />
                       View Profile
@@ -418,7 +418,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
 
                     <button
                       onClick={() => setFeedbackCandidateId(cand.candidate_id)}
-                      className="px-2.5 py-1.5 rounded-md text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition flex items-center gap-1.5"
+                      className="px-2.5 py-1.5 rounded-md text-xs font-medium text-zinc-300 bg-white/10 hover:bg-white/20 hover:scale-[1.02] transition flex items-center gap-1.5"
                     >
                       <MessageSquare className="w-3 h-3 text-zinc-400" />
                       Decision
@@ -435,7 +435,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
 
                 {/* Expanded Details Panel */}
                 {isExpanded && (
-                  <div className="px-5 pb-5 pt-1 bg-zinc-950/50 border-t border-zinc-800/60 space-y-4 text-xs">
+                  <div className="px-5 pb-5 pt-1 bg-transparent/50 border-t border-white/10/60 space-y-4 text-xs">
                     
                     {/* Match Reasons */}
                     {cand.match_reasons && cand.match_reasons.length > 0 && (
@@ -447,7 +447,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
                           {cand.match_reasons.map((reason, rIdx) => (
                             <div
                               key={rIdx}
-                              className="p-2.5 bg-zinc-900 border border-zinc-800 rounded text-zinc-300 flex items-start gap-2"
+                              className="p-2.5 bg-white/5 border border-white/10 backdrop-blur-md rounded text-zinc-300 flex items-start gap-2"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                               <span>{reason}</span>
@@ -467,16 +467,16 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
                           {cand.evaluations.map((ev, evIdx) => (
                             <div
                               key={evIdx}
-                              className="p-3 bg-zinc-900 rounded border border-zinc-800 space-y-1.5"
+                              className="p-3 bg-white/5 backdrop-blur-md rounded border border-white/10 space-y-1.5"
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-medium text-zinc-200">{ev.requirement}</span>
-                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-950/40 text-emerald-300 border border-emerald-800/40">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
                                   {ev.assessment} ({Math.round(ev.confidence * 100)}%)
                                 </span>
                               </div>
                               {ev.evidence_quote && (
-                                <p className="text-zinc-400 bg-zinc-950 p-2 rounded border border-zinc-800 font-mono text-[11px]">
+                                <p className="text-zinc-400 bg-transparent p-2 rounded border border-white/10 font-mono text-[11px]">
                                   "{ev.evidence_quote}"
                                 </p>
                               )}
@@ -497,8 +497,8 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
       {/* Minimal Feedback Modal */}
       {feedbackCandidateId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg w-full max-w-sm p-5 space-y-3 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-2.5">
+          <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg w-full max-w-sm p-5 space-y-3 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
               <h3 className="text-sm font-semibold text-zinc-100">Recruiter Decision</h3>
               <button
                 onClick={() => setFeedbackCandidateId(null)}
@@ -536,7 +536,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
                   value={feedbackComments}
                   onChange={(e) => setFeedbackComments(e.target.value)}
                   placeholder="Evaluation rationale..."
-                  className="w-full bg-zinc-950 rounded border border-zinc-800 p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700"
+                  className="w-full bg-transparent rounded border border-white/10 p-2.5 text-xs text-zinc-100 focus:outline-none focus:border-zinc-700"
                 />
               </div>
 

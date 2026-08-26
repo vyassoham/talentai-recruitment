@@ -63,8 +63,8 @@ export const StalenessManagerTab: React.FC = () => {
     <div className="space-y-6">
       
       {/* Header Container */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div>
             <h2 className="text-base font-semibold text-zinc-100">
               Candidate Profile Decay & Staleness Auditor
@@ -102,7 +102,7 @@ export const StalenessManagerTab: React.FC = () => {
         </div>
 
         {refreshMsg && (
-          <div className="p-3 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-300 text-xs flex items-center gap-2">
+          <div className="p-3 rounded-md bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner text-zinc-300 text-xs flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
             <span>{refreshMsg}</span>
           </div>
@@ -110,8 +110,8 @@ export const StalenessManagerTab: React.FC = () => {
       </div>
 
       {/* Stale Candidate Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-        <div className="p-4 border-b border-zinc-800">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg overflow-hidden">
+        <div className="p-4 border-b border-white/10">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
             Profiles Requiring Re-Enrichment ({staleCandidates.length})
           </h3>
@@ -119,7 +119,7 @@ export const StalenessManagerTab: React.FC = () => {
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-zinc-800 text-zinc-400 font-medium uppercase text-[10px] bg-zinc-950/40">
+            <thead className="border-b border-white/10 text-zinc-400 font-medium uppercase text-[10px] bg-transparent/40">
               <tr>
                 <th className="py-2.5 px-4">Candidate</th>
                 <th className="py-2.5 px-4">Last Enriched</th>

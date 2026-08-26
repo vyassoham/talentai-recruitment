@@ -61,26 +61,26 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800">
+    <header className="sticky top-0 z-40 w-full bg-[#0A0A0A]/70 backdrop-blur-xl border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Micro System Status Header */}
-        <div className="flex items-center justify-between py-1 border-b border-zinc-800/60 text-[11px] text-zinc-500">
+        <div className="flex items-center justify-between py-1 border-b border-white/5 text-[11px] text-zinc-500">
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5 text-zinc-400 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span className="flex items-center gap-1.5 text-zinc-300 font-medium drop-shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
               All Systems Operational
             </span>
-            <span className="hidden sm:inline-flex items-center gap-1 text-zinc-500">
-              <Database className="w-3 h-3 text-zinc-400" />
+            <span className="hidden sm:inline-flex items-center gap-1 text-zinc-400">
+              <Database className="w-3 h-3 text-zinc-500" />
               Supabase pgvector
             </span>
-            <span className="hidden sm:inline-flex items-center gap-1 text-zinc-500">
-              <Cpu className="w-3 h-3 text-zinc-400" />
+            <span className="hidden sm:inline-flex items-center gap-1 text-zinc-400">
+              <Cpu className="w-3 h-3 text-zinc-500" />
               Gemini 3.6 Flash
             </span>
-            <span className="hidden sm:inline-flex items-center gap-1 text-zinc-500">
-              <Zap className="w-3 h-3 text-zinc-400" />
+            <span className="hidden sm:inline-flex items-center gap-1 text-zinc-400">
+              <Zap className="w-3 h-3 text-zinc-500" />
               Upstash Redis
             </span>
           </div>
@@ -96,14 +96,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           
           {/* Brand */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="w-7 h-7 rounded-md bg-indigo-600 flex items-center justify-center text-white">
+            <div className="w-7 h-7 rounded-md bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]">
               <Sparkles className="w-4 h-4" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm text-zinc-100 tracking-tight">
+              <span className="font-semibold text-sm text-white tracking-tight drop-shadow-sm">
                 TalentAI
               </span>
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/5 text-zinc-300 border border-white/10 backdrop-blur-sm">
                 Personal Workspace
               </span>
             </div>
@@ -118,10 +118,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-300 ${
                     isActive
-                      ? "text-zinc-100 bg-zinc-800"
-                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
+                      ? "text-white bg-white/10 shadow-[0_0_10px_rgba(255,255,255,0.02)] border border-white/5"
+                      : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
@@ -134,21 +134,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Live Indicator & Count */}
           <div className="flex items-center gap-3 shrink-0">
             {dbCount !== null && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]">
                 <Users className="w-3.5 h-3.5" />
                 {dbCount.toLocaleString()} Candidates
               </span>
             )}
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-zinc-900 text-zinc-300 border border-zinc-800">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Admin Mode Active
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shadow-[0_0_12px_rgba(16,185,129,0.1)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+              Admin Mode
             </span>
           </div>
 
         </div>
 
         {/* Mobile Navigation Row */}
-        <div className="md:hidden flex items-center gap-1 overflow-x-auto pb-2.5 pt-1 scrollbar-none border-t border-zinc-800/40">
+        <div className="md:hidden flex items-center gap-1 overflow-x-auto pb-2.5 pt-1 scrollbar-none border-t border-white/5">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -156,9 +156,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-all ${
                   isActive
-                    ? "bg-zinc-800 text-zinc-100"
+                    ? "bg-white/10 text-white border border-white/5"
                     : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >

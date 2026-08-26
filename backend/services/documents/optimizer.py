@@ -1,6 +1,6 @@
 import io
 import logging
-from typing import BinaryIO, Tuple
+from typing import BinaryIO, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
@@ -12,19 +12,26 @@ class DocumentOptimizer:
     """
 
     @staticmethod
-    def optimize_pdf_stream(file_obj: BinaryIO, filename: str) -> Tuple[BinaryIO, int, int]:
+    def optimize_pdf_stream(file_obj: Union[BinaryIO, bytes], filename: str) -> Tuple[BinaryIO, int, int]:
         """
         Compresses PDF bytes using PyMuPDF lossless stream deflation and garbage cleanup.
         Returns: (optimized_file_obj, original_size, optimized_size)
         """
         extension = filename.split(".")[-1].lower() if "." in filename else ""
-        file_obj.seek(0)
-        raw_bytes = file_obj.read()
+
+        if isinstance(file_obj, bytes):
+            raw_bytes = file_obj
+            stream_obj = io.BytesIO(raw_bytes)
+        else:
+            file_obj.seek(0)
+            raw_bytes = file_obj.read()
+            file_obj.seek(0)
+            stream_obj = file_obj
+
         original_size = len(raw_bytes)
-        file_obj.seek(0)
 
         if extension != "pdf" or original_size == 0:
-            return file_obj, original_size, original_size
+            return stream_obj, original_size, original_size
 
         try:
             import fitz  # PyMuPDF
@@ -52,10 +59,10 @@ class DocumentOptimizer:
                 optimized_stream = io.BytesIO(optimized_bytes)
                 return optimized_stream, original_size, optimized_size
             else:
-                file_obj.seek(0)
-                return file_obj, original_size, original_size
+                stream_obj.seek(0)
+                return stream_obj, original_size, original_size
 
         except Exception as e:
             logger.warning(f"PDF optimization failed for '{filename}' ({e}); using original file.")
-            file_obj.seek(0)
-            return file_obj, original_size, original_size
+            stream_obj.seek(0)
+            return stream_obj, original_size, original_size

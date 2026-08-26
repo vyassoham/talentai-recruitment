@@ -81,7 +81,7 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
   // While verifying network
   if (isChecking) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-zinc-400 text-xs gap-3 font-mono">
+      <div className="min-h-screen bg-transparent flex flex-col items-center justify-center text-zinc-400 text-xs gap-3 font-mono">
         <Wifi className="w-5 h-5 animate-pulse text-indigo-400" />
         <span>Authenticating Home WiFi Network Security Token...</span>
       </div>
@@ -95,8 +95,8 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
 
   // Locked Screen for unauthorized visitors outside Home WiFi
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-4 antialiased">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md p-8 shadow-2xl space-y-6 text-center">
+    <div className="min-h-screen bg-transparent text-zinc-100 flex items-center justify-center p-4 antialiased">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-xl w-full max-w-md p-8 shadow-2xl space-y-6 text-center">
         
         <div className="w-12 h-12 rounded-full bg-rose-950/50 border border-rose-900/50 text-rose-400 flex items-center justify-center mx-auto">
           <Lock className="w-6 h-6" />
@@ -111,7 +111,7 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
           </p>
         </div>
 
-        <div className="p-3.5 bg-zinc-950 rounded-lg border border-zinc-800 text-[11px] text-zinc-400 font-mono text-left space-y-1.5">
+        <div className="p-3.5 bg-transparent rounded-lg border border-white/10 text-[11px] text-zinc-400 font-mono text-left space-y-1.5">
           <div className="flex justify-between">
             <span>Your Network IP:</span>
             <span className="text-zinc-200">{clientIp || "Unknown External"}</span>
@@ -143,7 +143,7 @@ export const NetworkGuard: React.FC<NetworkGuardProps> = ({ children }) => {
                 value={passkey}
                 onChange={(e) => setPasskey(e.target.value)}
                 placeholder="Enter 4-digit Passkey"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-md px-3 py-2 text-xs text-zinc-100 text-center font-mono focus:outline-none focus:border-zinc-700"
+                className="w-full bg-black/20 border border-white/5 backdrop-blur-sm shadow-inner rounded-md px-3 py-2 text-xs text-zinc-100 text-center font-mono focus:outline-none focus:border-zinc-700"
               />
             </div>
 

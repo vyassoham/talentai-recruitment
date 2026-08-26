@@ -58,8 +58,8 @@ export const DEIAnalyticsTab: React.FC<DEIAnalyticsTabProps> = ({
     <div className="space-y-6">
       
       {/* Header Container */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div>
             <h2 className="text-base font-semibold text-zinc-100">
               DEI Bias Audit & EEOC Adverse Impact Monitor
@@ -81,7 +81,7 @@ export const DEIAnalyticsTab: React.FC<DEIAnalyticsTabProps> = ({
 
         {/* Minimal 3 KPI Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-          <div className="p-4 bg-zinc-950 rounded border border-zinc-800 space-y-1">
+          <div className="p-4 bg-transparent rounded border border-white/10 space-y-1">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">EEOC Status</span>
             <div className="flex items-center gap-1.5 pt-0.5">
               {report && !report.adverse_impact_detected ? (
@@ -98,7 +98,7 @@ export const DEIAnalyticsTab: React.FC<DEIAnalyticsTabProps> = ({
             </div>
           </div>
 
-          <div className="p-4 bg-zinc-950 rounded border border-zinc-800 space-y-1">
+          <div className="p-4 bg-transparent rounded border border-white/10 space-y-1">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">Adverse Impact Ratio</span>
             <span className="text-lg font-semibold font-mono text-zinc-100 block">
               {report && report.adverse_impact_ratio ? `${(report.adverse_impact_ratio * 100).toFixed(1)}%` : "N/A"}
@@ -106,7 +106,7 @@ export const DEIAnalyticsTab: React.FC<DEIAnalyticsTabProps> = ({
             <span className="text-[10px] text-zinc-500 block">80.0% Minimum Legal Standard</span>
           </div>
 
-          <div className="p-4 bg-zinc-950 rounded border border-zinc-800 space-y-1">
+          <div className="p-4 bg-transparent rounded border border-white/10 space-y-1">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">Demographic Sample</span>
             <span className="text-lg font-semibold font-mono text-zinc-100 block">
               {report ? report.total_evaluations : 0} Candidates
@@ -118,7 +118,7 @@ export const DEIAnalyticsTab: React.FC<DEIAnalyticsTabProps> = ({
 
       {/* Cohort Breakdown */}
       {report && report.disparity_details && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-4">
+        <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg p-6 space-y-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
             Demographic Pass-Through Breakdown
           </h3>
@@ -126,7 +126,7 @@ export const DEIAnalyticsTab: React.FC<DEIAnalyticsTabProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             
             {/* Gender */}
-            <div className="bg-zinc-950 p-4 rounded border border-zinc-800 space-y-2.5">
+            <div className="bg-transparent p-4 rounded border border-white/10 space-y-2.5">
               <span className="font-medium text-zinc-200 block text-xs">Gender Representation</span>
               <div className="space-y-2">
                 {Object.entries(report.disparity_details.gender || {}).map(([cohort, stats]: any) => (
@@ -142,7 +142,7 @@ export const DEIAnalyticsTab: React.FC<DEIAnalyticsTabProps> = ({
             </div>
 
             {/* Race / Ethnicity */}
-            <div className="bg-zinc-950 p-4 rounded border border-zinc-800 space-y-2.5">
+            <div className="bg-transparent p-4 rounded border border-white/10 space-y-2.5">
               <span className="font-medium text-zinc-200 block text-xs">Race & Ethnicity Representation</span>
               <div className="space-y-2">
                 {Object.entries(report.disparity_details.race_ethnicity || {}).map(([cohort, stats]: any) => (

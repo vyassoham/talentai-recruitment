@@ -1,6 +1,7 @@
 import os
+import io
 import logging
-from typing import BinaryIO, Tuple
+from typing import BinaryIO, Tuple, Union
 from core.config import settings
 from core.security import SecurityUtils
 
@@ -22,16 +23,22 @@ class DocumentValidator:
     MAX_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
     @classmethod
-    def validate(cls, file_obj: BinaryIO, filename: str) -> Tuple[bool, str]:
+    def validate(cls, file_obj: Union[BinaryIO, bytes], filename: str) -> Tuple[bool, str]:
         """
         Validates file size, extension, magic byte MIME type, and scans for malware via ClamAV.
         Returns: (is_valid, error_message)
         """
-        # 1. Check File Size
-        file_obj.seek(0, os.SEEK_END)
-        size = file_obj.tell()
-        file_obj.seek(0)
+        if isinstance(file_obj, bytes):
+            content = file_obj
+            size = len(content)
+        else:
+            file_obj.seek(0, os.SEEK_END)
+            size = file_obj.tell()
+            file_obj.seek(0)
+            content = file_obj.read()
+            file_obj.seek(0)
 
+        # 1. Check File Size
         if size > cls.MAX_BYTES:
             return False, f"File size exceeds maximum allowed ({cls.MAX_FILE_SIZE_MB}MB)"
             
@@ -43,16 +50,12 @@ class DocumentValidator:
         if ext not in cls.ALLOWED_EXTENSIONS:
             return False, f"Unsupported file extension: {ext}"
 
-        # 3. Read content for MIME detection & Malware inspection
-        content = file_obj.read()
-        file_obj.seek(0)
-        
-        # 4. ClamAV Antivirus Scanning
+        # 3. ClamAV Antivirus Scanning
         is_clean, threat = SecurityUtils.scan_file_for_malware(content)
         if not is_clean:
             return False, f"Security Violation: Malware detected ({threat})"
 
-        # 5. MIME Type Detection
+        # 4. MIME Type Detection
         try:
             if HAS_MAGIC:
                 chunk = content[:2048]

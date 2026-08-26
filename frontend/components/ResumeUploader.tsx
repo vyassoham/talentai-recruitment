@@ -114,8 +114,8 @@ export const ResumeUploader: React.FC = () => {
     <div className="space-y-6">
       
       {/* Upload Container */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+      <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg p-6 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-semibold text-zinc-100">
@@ -151,7 +151,7 @@ export const ResumeUploader: React.FC = () => {
           className={`rounded-lg border border-dashed p-8 text-center cursor-pointer transition-colors ${
             isDragging
               ? "border-indigo-500 bg-zinc-800/50"
-              : "border-zinc-700 hover:border-zinc-600 bg-zinc-950/40 hover:bg-zinc-950"
+              : "border-zinc-700 hover:border-zinc-600 bg-transparent/40 hover:bg-transparent"
           }`}
         >
           <input
@@ -180,8 +180,8 @@ export const ResumeUploader: React.FC = () => {
 
       {/* Uploaded Files Table */}
       {files.length > 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-          <div className="p-4 border-b border-zinc-800">
+        <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg overflow-hidden">
+          <div className="p-4 border-b border-white/10">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
               Active Ingestion Tasks ({files.length})
             </h3>
