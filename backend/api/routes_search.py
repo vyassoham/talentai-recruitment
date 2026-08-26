@@ -45,7 +45,7 @@ async def search_candidates(
         job = JobRequirement(
             id=request.job_id or "1",
             title=request.query or "Software Engineering Professional",
-            mandatory_skills=["Python", "FastAPI"] if not request.query else [w.strip() for w in request.query.split() if len(w) > 3][:3],
+            mandatory_skills=[{"canonical_skill_name": "Python"}, {"canonical_skill_name": "FastAPI"}] if not request.query else [{"canonical_skill_name": w.strip()} for w in request.query.split() if len(w) > 3][:3],
             min_experience_years=0.0
         )
         
