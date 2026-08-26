@@ -62,6 +62,12 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        this.setToken(null);
+        if (typeof window !== "undefined") {
+          window.location.reload();
+        }
+      }
       let errorMessage = `API Error ${response.status}: ${response.statusText}`;
       try {
         const errorData = await response.json();
