@@ -36,30 +36,7 @@ export const PassiveSourcingTab: React.FC = () => {
         const data = await api.searchStackOverflowSourcing(tagList, 500, 10);
         setResults(data);
       }
-    } catch (err: any) {
-      setResults([
-        {
-          name: "Johnson Chetty",
-          github_url: "https://github.com/johnsonc",
-          location: "Mumbai, India",
-          bio: "Senior Distributed Systems & Backend Engineer. Specialist in Python, FastAPI, and Postgres.",
-          public_repos: 632,
-          followers: 120,
-          primary_language: "Python",
-          source: "GITHUB_SOURCING"
-        },
-        {
-          name: "Pratik Falke",
-          github_url: "https://github.com/pratikfalke",
-          location: "Mumbai, India",
-          bio: "AI Architect & ML Engineer. Expert in transformer architectures, vector embeddings, and LangChain.",
-          public_repos: 621,
-          followers: 95,
-          primary_language: "Python",
-          source: "GITHUB_SOURCING"
-        }
-      ]);
-    } finally {
+    } catch (err: any) { setResults([]); alert('Sourcing failed or endpoint not implemented on backend.'); } finally {
       setIsLoading(false);
     }
   };
@@ -70,9 +47,7 @@ export const PassiveSourcingTab: React.FC = () => {
     try {
       const res = await api.ingestDiscoveredCandidates(results);
       setIngestMsg(`Ingested ${res.created} candidate profiles into Supabase. (${res.skipped_duplicates} duplicates skipped)`);
-    } catch (err: any) {
-      setIngestMsg("Profiles synced into talent database.");
-    } finally {
+    } catch (err: any) { setResults([]); alert('Sourcing failed or endpoint not implemented on backend.'); } finally {
       setIsIngesting(false);
     }
   };
@@ -270,3 +245,4 @@ export const PassiveSourcingTab: React.FC = () => {
     </div>
   );
 };
+

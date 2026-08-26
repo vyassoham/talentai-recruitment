@@ -21,24 +21,7 @@ export const StalenessManagerTab: React.FC = () => {
     try {
       const data = await api.getStaleCandidates(thresholdDays, 25);
       setStaleCandidates(data);
-    } catch (err: any) {
-      setStaleCandidates([
-        {
-          candidate_id: 1,
-          name: "Alex Rivera",
-          staleness_score: 0.8,
-          last_enriched_at: "2025-11-12T00:00:00",
-          has_social_links: true
-        },
-        {
-          candidate_id: 2,
-          name: "Priya Sharma",
-          staleness_score: 0.5,
-          last_enriched_at: "2026-01-10T00:00:00",
-          has_social_links: true
-        }
-      ]);
-    } finally {
+    } catch (err: any) { setStaleCandidates([]); alert('Failed to fetch stale candidates.'); } finally {
       setIsLoading(false);
     }
   };
@@ -52,9 +35,7 @@ export const StalenessManagerTab: React.FC = () => {
     try {
       const res = await api.triggerStalenessRefresh(thresholdDays, 20);
       setRefreshMsg(`Enqueued ${res.enqueued} profiles for background re-enrichment.`);
-    } catch (err: any) {
-      setRefreshMsg("Batch re-enrichment jobs enqueued.");
-    } finally {
+    } catch (err: any) { setStaleCandidates([]); alert('Failed to fetch stale candidates.'); } finally {
       setIsRefreshing(false);
     }
   };
@@ -167,3 +148,4 @@ export const StalenessManagerTab: React.FC = () => {
     </div>
   );
 };
+

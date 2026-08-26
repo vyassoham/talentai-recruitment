@@ -41,18 +41,7 @@ export const JobParserSection: React.FC<JobParserSectionProps> = ({
       setParsedRequirements(res.requirements || []);
       onJobParsed(res.job_id, res.requirements || []);
       setStatusMsg(`Job parsed successfully! Job ID #${res.job_id} is now active.`);
-    } catch (err: any) {
-      const mockReqs: RequirementItem[] = [
-        { name: "Python & FastAPI Backend", type: "MANDATORY", weight: 1.0 },
-        { name: "PostgreSQL & pgvector HNSW", type: "MANDATORY", weight: 1.0 },
-        { name: "Celery & Redis Task Queue", type: "MANDATORY", weight: 0.9 },
-        { name: "5+ Years Experience", type: "EXPERIENCE", weight: 0.8 },
-        { name: "Next.js & Frontend Development", type: "PREFERRED", weight: 0.5 }
-      ];
-      setParsedRequirements(mockReqs);
-      onJobParsed("1", mockReqs);
-      setStatusMsg(`Job parsed! (Job #1 active with 5 criteria extracted)`);
-    } finally {
+    } catch (err: any) { alert('Failed to parse job description via API.'); } finally {
       setIsParsing(false);
     }
   };
@@ -176,3 +165,4 @@ export const JobParserSection: React.FC<JobParserSectionProps> = ({
     </div>
   );
 };
+

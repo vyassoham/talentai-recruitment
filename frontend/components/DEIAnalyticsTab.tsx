@@ -26,26 +26,7 @@ export const DEIAnalyticsTab: React.FC<DEIAnalyticsTabProps> = ({
       const jobId = activeJobId || "1";
       const data = await api.getDEIAnalytics(jobId, thresholdScore);
       setReport(data);
-    } catch (err) {
-      setReport({
-        job_id: 1,
-        threshold_score: 0.7,
-        total_evaluations: 48,
-        adverse_impact_detected: false,
-        adverse_impact_ratio: 0.88,
-        disparity_details: {
-          gender: {
-            male: { total: 28, passed: 24, pass_rate: 0.857 },
-            female: { total: 20, passed: 17, pass_rate: 0.850 }
-          },
-          race_ethnicity: {
-            asian: { total: 18, passed: 16, pass_rate: 0.888 },
-            hispanic: { total: 12, passed: 10, pass_rate: 0.833 },
-            white: { total: 18, passed: 15, pass_rate: 0.833 }
-          }
-        }
-      });
-    } finally {
+    } catch (err) { setReport(null); } finally {
       setIsLoading(false);
     }
   };
@@ -164,3 +145,4 @@ export const DEIAnalyticsTab: React.FC<DEIAnalyticsTabProps> = ({
     </div>
   );
 };
+

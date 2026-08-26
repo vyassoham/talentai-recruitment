@@ -21,89 +21,7 @@ interface CandidateSearchResultsProps {
   onSelectCandidate: (candidate: CandidateResult) => void;
 }
 
-const DEMO_SHOWCASE_CANDIDATES: CandidateResult[] = [
-  {
-    candidate_id: 1,
-    name: "Alex Rivera",
-    current_title: "Senior AI & Distributed Systems Architect",
-    total_experience_years: 7.5,
-    eligibility_status: "ELIGIBLE",
-    retrieval_score: 0.94,
-    rerank_score: 0.96,
-    composite_score: 0.95,
-    final_score: 0.96,
-    match_reasons: [
-      "Extensive experience with FastAPI, PostgreSQL, and pgvector HNSW indexing",
-      "Led high-throughput Celery & Redis asynchronous processing pipelines",
-      "Demonstrated experience optimizing LLM prompts and token consumption"
-    ],
-    evaluations: [
-      {
-        requirement: "7+ Years Backend / Distributed Systems",
-        assessment: "Meets",
-        confidence: 0.98,
-        validation_status: "VERIFIED",
-        evidence_quote: "Architected real-time microservices in Python & FastAPI serving 50M+ requests monthly with PostgreSQL pgvector."
-      },
-      {
-        requirement: "Vector Search & LLM Integration",
-        assessment: "Meets",
-        confidence: 0.95,
-        validation_status: "VERIFIED",
-        evidence_quote: "Integrated OpenAI and Google Gemini APIs with hybrid keyword and semantic retrieval."
-      }
-    ]
-  },
-  {
-    candidate_id: 2,
-    name: "Priya Sharma",
-    current_title: "Staff Machine Learning Engineer",
-    total_experience_years: 6.0,
-    eligibility_status: "ELIGIBLE",
-    retrieval_score: 0.88,
-    rerank_score: 0.91,
-    composite_score: 0.89,
-    final_score: 0.89,
-    match_reasons: [
-      "Strong machine learning background in PyTorch and transformer embeddings",
-      "Implemented automated ranking quality benchmarks using NDCG@5 metrics",
-      "Deep understanding of algorithmic bias auditing and EEOC compliance"
-    ],
-    evaluations: [
-      {
-        requirement: "Machine Learning & Embeddings",
-        assessment: "Meets",
-        confidence: 0.96,
-        validation_status: "VERIFIED",
-        evidence_quote: "Built custom text embedding pipelines utilizing PyTorch and HuggingFace transformers."
-      }
-    ]
-  },
-  {
-    candidate_id: 3,
-    name: "Marcus Vance",
-    current_title: "Fullstack Python & React Engineer",
-    total_experience_years: 4.5,
-    eligibility_status: "ELIGIBLE",
-    retrieval_score: 0.78,
-    rerank_score: 0.81,
-    composite_score: 0.79,
-    final_score: 0.80,
-    match_reasons: [
-      "Solid proficiency in Next.js, Tailwind CSS, and FastAPI REST endpoints",
-      "Experience with JWT authentication and RBAC authorization middleware"
-    ],
-    evaluations: [
-      {
-        requirement: "Fullstack React & Python",
-        assessment: "Meets",
-        confidence: 0.90,
-        validation_status: "VERIFIED",
-        evidence_quote: "Developed responsive React interfaces and integrated asynchronous background Celery jobs."
-      }
-    ]
-  }
-];
+
 
 const SUGGESTED_QUERIES = [
   "Python developer jisko FastAPI aur PostgreSQL aata ho",
@@ -142,21 +60,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
       if (res.candidates.length > 0) {
         setExpandedCandidate(res.candidates[0].candidate_id);
       }
-    } catch (err: any) {
-      // Demo fallback response
-      setSearchResponse({
-        job_id: activeJobId || "1",
-        eligible_count: DEMO_SHOWCASE_CANDIDATES.length,
-        retrieved_count: DEMO_SHOWCASE_CANDIDATES.length,
-        candidates: DEMO_SHOWCASE_CANDIDATES,
-        telemetry: {
-          eligibility_latency_sec: 0.012,
-          retrieval_ranking_latency_sec: 0.042,
-          rerank_latency_sec: 0.315,
-          total_search_latency_sec: 0.357
-        }
-      });
-    } finally {
+    } catch (err: any) { setSearchResponse(null); alert('Search failed. Please try again.'); } finally {
       setIsSearching(false);
     }
   };
@@ -175,14 +79,12 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
       );
       setFeedbackCandidateId(null);
       setFeedbackComments("");
-    } catch (err: any) {
-      setFeedbackCandidateId(null);
-    } finally {
+    } catch (err: any) { setSearchResponse(null); alert('Search failed. Please try again.'); } finally {
       setIsSubmittingFeedback(false);
     }
   };
 
-  const candidateList = searchResponse ? searchResponse.candidates : DEMO_SHOWCASE_CANDIDATES;
+  const candidateList = searchResponse ? searchResponse.candidates : [];
 
   return (
     <div className="space-y-6">
@@ -326,7 +228,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
             Retrieval Time
           </span>
           <span className="text-2xl font-semibold font-mono text-white block drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">
-            {searchResponse?.telemetry?.retrieval_ranking_latency_sec || "0.042"}s
+            {searchResponse?.telemetry?.retrieval_ranking_latency_sec || "0.000"}s
           </span>
         </div>
 
@@ -335,7 +237,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
             AI Rerank Latency
           </span>
           <span className="text-2xl font-semibold font-mono text-white block drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">
-            {searchResponse?.telemetry?.rerank_latency_sec || "0.315"}s
+            {searchResponse?.telemetry?.rerank_latency_sec || "0.000"}s
           </span>
         </div>
 
@@ -344,7 +246,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
             Total Pipeline Time
           </span>
           <span className="text-2xl font-semibold font-mono text-indigo-300 block drop-shadow-[0_0_10px_rgba(99,102,241,0.6)]">
-            {searchResponse?.telemetry?.total_search_latency_sec || "0.357"}s
+            {searchResponse?.telemetry?.total_search_latency_sec || "0.000"}s
           </span>
         </div>
       </div>
@@ -564,4 +466,5 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
     </div>
   );
 };
+
 

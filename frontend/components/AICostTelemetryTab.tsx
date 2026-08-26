@@ -17,44 +17,7 @@ export const AICostTelemetryTab: React.FC = () => {
     try {
       const data = await api.getAICostAnalytics();
       setReport(data);
-    } catch (err) {
-      setReport({
-        total_ai_transactions: 142,
-        total_prompt_tokens: 184500,
-        total_completion_tokens: 42300,
-        total_tokens_consumed: 226800,
-        total_estimated_cost_usd: 0.1245,
-        operations: [
-          {
-            operation: "JD_PARSER",
-            transaction_count: 14,
-            prompt_tokens: 28000,
-            completion_tokens: 6500,
-            total_tokens: 34500,
-            estimated_cost_usd: 0.0210,
-            avg_latency_sec: 0.65
-          },
-          {
-            operation: "CV_PARSER",
-            transaction_count: 38,
-            prompt_tokens: 76000,
-            completion_tokens: 18200,
-            total_tokens: 94200,
-            estimated_cost_usd: 0.0580,
-            avg_latency_sec: 0.82
-          },
-          {
-            operation: "CandidateEvaluation",
-            transaction_count: 90,
-            prompt_tokens: 80500,
-            completion_tokens: 17600,
-            total_tokens: 98100,
-            estimated_cost_usd: 0.0455,
-            avg_latency_sec: 0.31
-          }
-        ]
-      });
-    } finally {
+    } catch (err) { setReport(null); } finally {
       setIsLoading(false);
     }
   };
@@ -161,3 +124,4 @@ export const AICostTelemetryTab: React.FC = () => {
     </div>
   );
 };
+
