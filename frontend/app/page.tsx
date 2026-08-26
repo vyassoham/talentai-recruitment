@@ -15,7 +15,7 @@ import { api } from "../lib/api";
 import { CandidateResult, RequirementItem } from "../lib/types";
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("match");
+  const [activeTab, setActiveTab] = useState("jobs");
   const [activeJobId, setActiveJobId] = useState<string | null>("1");
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateResult | null>(null);
 
