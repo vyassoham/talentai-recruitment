@@ -351,9 +351,9 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
 
       {/* 3. Candidate List (Clean Table / Rows with Subtle Dividers) */}
       <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg overflow-hidden">
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+        <div className="p-5 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.02]">
           <div>
-            <h3 className="text-sm font-semibold text-zinc-100">
+            <h3 className="text-lg font-bold bg-gradient-to-r from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent drop-shadow-sm">
               Ranked Candidate Matches ({candidateList.length})
             </h3>
             {searchQuery && (
@@ -385,7 +385,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
                       <span className="w-5 text-center text-xs font-mono font-medium text-zinc-500">
                         #{index + 1}
                       </span>
-                      <div className="px-2.5 py-1 rounded bg-zinc-800 border border-zinc-700 text-center font-mono">
+                      <div className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-center font-mono shadow-[0_0_15px_rgba(16,185,129,0.15)]">
                         <span className="text-xs font-bold text-emerald-300 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]">{scorePct}%</span>
                       </div>
                     </div>
@@ -499,7 +499,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
           <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg w-full max-w-sm p-5 space-y-3 shadow-2xl">
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-              <h3 className="text-sm font-semibold text-zinc-100">Recruiter Decision</h3>
+              <h3 className="text-lg font-bold bg-gradient-to-r from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent drop-shadow-sm">Recruiter Decision</h3>
               <button
                 onClick={() => setFeedbackCandidateId(null)}
                 className="text-zinc-500 hover:text-zinc-300 text-lg leading-none"
@@ -564,3 +564,4 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
     </div>
   );
 };
+

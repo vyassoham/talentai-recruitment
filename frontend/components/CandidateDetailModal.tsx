@@ -60,13 +60,13 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
             <button
               onClick={() => setShowConfirmDelete(true)}
               title="Delete candidate"
-              className="p-1.5 rounded text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 transition"
+              className="p-1.5 rounded text-zinc-400 hover:text-rose-400 hover:bg-white/10 transition"
             >
               <Trash2 className="w-4 h-4" />
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition"
+              className="p-1.5 rounded text-zinc-400 hover:text-zinc-100 hover:bg-white/10 transition"
             >
               <X className="w-4 h-4" />
             </button>
