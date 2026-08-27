@@ -14,8 +14,8 @@ router = APIRouter()
 class ParseJobRequest(BaseModel):
     raw_description: Optional[str] = None
     job_description: Optional[str] = None
-    title: str = ""
-    min_experience_years: float = 0.0
+    title: Optional[str] = ""
+    min_experience_years: Optional[float] = 0.0
 
 @router.post("/jobs/parse")
 def parse_job(
