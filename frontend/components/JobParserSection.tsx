@@ -41,7 +41,7 @@ export const JobParserSection: React.FC<JobParserSectionProps> = ({
       setParsedRequirements(res.requirements || []);
       onJobParsed(res.job_id, res.requirements || []);
       setStatusMsg(`Job parsed successfully! Job ID #${res.job_id} is now active.`);
-    } catch (err: any) { alert('Failed to parse job description via API.'); } finally {
+    } catch (err: any) { alert(`Parse failed: ${err.message || 'Unknown error'}`); console.error(err); } finally {
       setIsParsing(false);
     }
   };
