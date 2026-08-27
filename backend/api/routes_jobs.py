@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from typing import Optional
 from sqlalchemy.orm import Session
 from core.database import get_db
 from core.queue import queue_client
@@ -11,7 +12,8 @@ from services.jobs.job_service import background_process_jd
 router = APIRouter()
 
 class ParseJobRequest(BaseModel):
-    raw_description: str = Field(...)
+    raw_description: Optional[str] = None
+    job_description: Optional[str] = None
     title: str = ""
     min_experience_years: float = 0.0
 
@@ -24,7 +26,12 @@ def parse_job(
     try:
         from services.jobs.job_service import JobService
         svc = JobService(db)
-        job = svc.process_raw_jd(request.raw_description)
+        
+        actual_description = request.raw_description or request.job_description
+        if not actual_description:
+            raise ValueError("Either raw_description or job_description must be provided")
+            
+        job = svc.process_raw_jd(actual_description)
         
         reqs = []
         for m in (job.mandatory_skills or []):
