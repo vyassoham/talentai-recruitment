@@ -18,7 +18,7 @@ class DocumentValidationError(Exception):
 
 class DocumentValidator:
     ALLOWED_EXTENSIONS = [ext.strip().lower() for ext in settings.ALLOWED_CV_EXTENSIONS]
-    ALLOWED_MIME_TYPES = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+    ALLOWED_MIME_TYPES = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword", "text/plain"]
     MAX_FILE_SIZE_MB = settings.MAX_CV_FILE_SIZE_MB
     MAX_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
