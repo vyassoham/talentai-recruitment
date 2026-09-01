@@ -105,44 +105,52 @@ class GeminiProvider(AIProvider):
             }
         }
 
-        try:
-            resp = requests.post(url, json=payload, timeout=45)
-            if resp.status_code == 429:
-                raise AIProviderError("Gemini API Rate Limit Exceeded", retryable=True)
-            elif resp.status_code >= 500:
-                raise AIProviderError(f"Gemini Server Error: {resp.status_code}", retryable=True)
-            elif resp.status_code != 200:
-                raise AIProviderError(f"Gemini API Error ({resp.status_code}): {resp.text}", retryable=False)
-
-            data = resp.json()
-            candidates = data.get("candidates", [])
-            if not candidates or not candidates[0].get("content", {}).get("parts"):
-                raise AIProviderError("No response candidates returned by Gemini", retryable=True)
-
-            raw_text = candidates[0]["content"]["parts"][0]["text"].strip()
-            
-            if raw_text.startswith("```json"):
-                raw_text = raw_text[7:]
-            if raw_text.startswith("```"):
-                raw_text = raw_text[3:]
-            if raw_text.endswith("```"):
-                raw_text = raw_text[:-3]
-            raw_text = raw_text.strip()
-
-            instance = schema_cls.model_validate_json(raw_text)
-
-            usage_meta = data.get("usageMetadata", {})
-            usage = {
-                "prompt_tokens": usage_meta.get("promptTokenCount", len(prompt) // 4),
-                "completion_tokens": usage_meta.get("candidatesTokenCount", len(raw_text) // 4)
-            }
-            return instance, usage
-
-        except AIProviderError:
-            raise
-        except Exception as e:
-            logger.error(f"Gemini structured generation failed: {e}", exc_info=True)
-            raise AIProviderError(f"Gemini generation error: {e}", retryable=False)
+        import time
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                resp = requests.post(url, json=payload, timeout=45)
+                if resp.status_code == 429:
+                    if attempt < max_retries - 1:
+                        time.sleep(5 * (attempt + 1))
+                        continue
+                    raise AIProviderError("Gemini API Rate Limit Exceeded", retryable=True)
+                elif resp.status_code >= 500:
+                    if attempt < max_retries - 1:
+                        time.sleep(3)
+                        continue
+                    raise AIProviderError(f"Gemini Server Error: {resp.status_code}", retryable=True)
+                elif resp.status_code != 200:
+                    raise AIProviderError(f"Gemini API Error ({resp.status_code}): {resp.text}", retryable=False)
+    
+                data = resp.json()
+                candidates = data.get("candidates", [])
+                if not candidates or not candidates[0].get("content", {}).get("parts"):
+                    raise AIProviderError("No response candidates returned by Gemini", retryable=True)
+    
+                raw_text = candidates[0]["content"]["parts"][0]["text"].strip()
+                
+                if raw_text.startswith("```json"):
+                    raw_text = raw_text[7:]
+                if raw_text.endswith("```"):
+                    raw_text = raw_text[:-3]
+                    
+                instance = schema_cls.model_validate_json(raw_text)
+                
+                usage = {
+                    "prompt_tokens": data.get("usageMetadata", {}).get("promptTokenCount", 0),
+                    "completion_tokens": data.get("usageMetadata", {}).get("candidatesTokenCount", 0)
+                }
+                return instance, usage
+    
+            except AIProviderError:
+                raise
+            except Exception as e:
+                logger.error(f"Gemini structured generation failed: {e}", exc_info=True)
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+                    continue
+                raise AIProviderError(f"Gemini generation error: {e}", retryable=False)
 
     def generate_embeddings(self, text: str) -> tuple[List[float], dict]:
         url = f"{self.base_url}/models/{self._embedding_model}:embedContent?key={self.api_key}"
