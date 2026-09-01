@@ -22,6 +22,9 @@ def calculate_staleness_score(candidate) -> float:
     
     if not reference_date:
         return 1.0  # No date at all = completely stale
+        
+    if reference_date.tzinfo is None:
+        reference_date = reference_date.replace(tzinfo=datetime.timezone.utc)
     
     days_old = (now - reference_date).days
     
@@ -42,7 +45,7 @@ def get_stale_candidates(threshold_days: int = STALENESS_THRESHOLD_DAYS, limit: 
     Finds candidates whose profiles are stale (not enriched recently).
     Returns a list of candidate info dicts sorted by staleness (most stale first).
     """
-    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=threshold_days)
+    cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=threshold_days)
     
     with SessionLocal() as db:
         stale_query = db.query(Candidate).filter(
