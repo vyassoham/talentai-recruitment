@@ -61,6 +61,9 @@ async def search_candidates(
             # Prepend the custom query so the AIReranker evaluates candidates against it
             job.raw_description = f"CRITICAL USER REQUIREMENT: {request.query}\n\nOriginal JD Context:\n{job.raw_description or ''}"
             job.title = f"Custom Search: {request.query[:50]}"
+            # Clear hardcoded skills from the base job so they don't penalize semantic match scores
+            job.mandatory_skills = []
+            job.preferred_skills = []
         except Exception:
             pass
         

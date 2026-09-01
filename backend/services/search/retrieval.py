@@ -61,6 +61,8 @@ class RetrievalResult:
             "name": self.candidate.name,
             "email": email,
             "phone": phone,
+            "current_title": self.candidate.current_title,
+            "total_experience_years": self.candidate.total_experience_years,
             "current_company": self.candidate.current_company,
             "resume_url": resume_url,
             "retrieval_score": round(self.retrieval_score, 4),
