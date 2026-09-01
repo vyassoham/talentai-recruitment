@@ -41,19 +41,7 @@ def source_from_github(
         min_repos=request.min_repos,
         max_results=request.max_results
     )
-    
-    if not discovered:
-        return {"status": "NO_RESULTS", "candidates_found": 0}
-    
-    # Ingest them into our database
-    result = PassiveSourcer.ingest_discovered_candidates(discovered)
-    
-    return {
-        "status": "SUCCESS",
-        "candidates_discovered": len(discovered),
-        "candidates_created": result["created"],
-        "duplicates_skipped": result["skipped_duplicates"]
-    }
+    return discovered or []
 
 @router.post("/sourcing/stackoverflow")
 def source_from_stackoverflow(
@@ -71,18 +59,19 @@ def source_from_stackoverflow(
         min_reputation=request.min_reputation,
         max_results=request.max_results
     )
-    
-    if not discovered:
-        return {"status": "NO_RESULTS", "candidates_found": 0}
-    
-    result = PassiveSourcer.ingest_discovered_candidates(discovered)
-    
-    return {
-        "status": "SUCCESS",
-        "candidates_discovered": len(discovered),
-        "candidates_created": result["created"],
-        "duplicates_skipped": result["skipped_duplicates"]
-    }
+    return discovered or []
+
+class IngestRequest(BaseModel):
+    candidates: List[dict]
+
+@router.post("/sourcing/ingest-discovered")
+def ingest_discovered(
+    request: IngestRequest,
+    current_user: User = Depends(require_role("RECRUITER"))
+):
+    from services.enrichment.passive_sourcer import PassiveSourcer
+    result = PassiveSourcer.ingest_discovered_candidates(request.candidates)
+    return result
 
 # ==================== Staleness & Refresh Endpoints ====================
 
