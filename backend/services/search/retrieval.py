@@ -33,9 +33,20 @@ class RetrievalResult:
         )
         
     def to_dict(self):
+        doc = self.candidate.documents[0] if self.candidate.documents else None
+        resume_url = None
+        if doc and doc.storage_key:
+            if doc.storage_key.endswith(".pdf") or doc.storage_key.endswith(".docx"):
+                # Supabase public URL construct
+                resume_url = f"https://csbuterahmvmtkeccoia.supabase.co/storage/v1/object/public/resumes/{doc.storage_key}"
+
         return {
             "candidate_id": str(self.candidate.id),
             "name": self.candidate.name,
+            "email": self.candidate.email,
+            "phone": self.candidate.phone,
+            "current_company": self.candidate.current_company,
+            "resume_url": resume_url,
             "retrieval_score": round(self.retrieval_score, 4),
             "skill_match_score": round(self.skill_match_score, 4),
             "semantic_similarity": round(self.semantic_similarity, 4),
@@ -61,8 +72,8 @@ class HybridRetrievalEngine:
         eligible_map = {res.candidate_id: res for res in eligible_results}
         candidate_ids = list(eligible_map.keys())
 
-        # 1. Fetch the actual Candidate objects with eager loading of skills (eliminates N+1)
-        candidates = self.db.query(Candidate).options(selectinload(Candidate.skills)).filter(Candidate.id.in_(candidate_ids)).all()
+        # 1. Fetch the actual Candidate objects with eager loading of skills and documents (eliminates N+1)
+        candidates = self.db.query(Candidate).options(selectinload(Candidate.skills), selectinload(Candidate.documents)).filter(Candidate.id.in_(candidate_ids)).all()
         
         results = []
         job_embedding = job.embedding

@@ -5,7 +5,11 @@ import {
   X,
   Trash2,
   AlertTriangle,
-  ShieldCheck
+  ShieldCheck,
+  Mail,
+  Phone,
+  Building,
+  FileText
 } from "lucide-react";
 import { CandidateResult } from "../lib/types";
 import { api } from "../lib/api";
@@ -90,6 +94,44 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
               <span className="text-zinc-500 block text-[10px] uppercase font-medium">Eligibility</span>
               <span className="text-xs font-semibold text-indigo-400 mt-1 block">PASS</span>
             </div>
+          </div>
+
+          {/* Contact & Resume */}
+          <div className="p-3 bg-white/5 border border-white/10 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+             <div className="space-y-2">
+                {candidate.email && (
+                   <div className="flex items-center gap-2 text-zinc-300">
+                     <Mail className="w-3.5 h-3.5 text-zinc-500" />
+                     {candidate.email}
+                   </div>
+                )}
+                {candidate.phone && (
+                   <div className="flex items-center gap-2 text-zinc-300">
+                     <Phone className="w-3.5 h-3.5 text-zinc-500" />
+                     {candidate.phone}
+                   </div>
+                )}
+                {candidate.current_company && (
+                   <div className="flex items-center gap-2 text-zinc-300">
+                     <Building className="w-3.5 h-3.5 text-zinc-500" />
+                     {candidate.current_company}
+                   </div>
+                )}
+                {(!candidate.email && !candidate.phone && !candidate.current_company) && (
+                   <span className="text-zinc-500 italic">No contact details found in CV.</span>
+                )}
+             </div>
+             {candidate.resume_url && (
+                <a 
+                  href={candidate.resume_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-medium transition flex items-center gap-2 whitespace-nowrap shadow-lg shadow-indigo-500/20"
+                >
+                  <FileText className="w-4 h-4" />
+                  View Original Resume
+                </a>
+             )}
           </div>
 
           {/* AI Match Rationale */}

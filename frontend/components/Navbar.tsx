@@ -30,20 +30,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   useEffect(() => {
     const fetchCount = async () => {
       try {
-        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-        if (!url || !key) return;
-        
-        const res = await fetch(`${url}/rest/v1/candidates?select=id`, {
-          headers: {
-            "apikey": key,
-            "Prefer": "count=exact",
-            "Range-Unit": "items",
-            "Range": "0-0"
-          }
-        });
-        const countStr = res.headers.get("Content-Range")?.split("/")?.[1];
-        if (countStr) setDbCount(parseInt(countStr));
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://talentai-recruitment.onrender.com/api/v1";
+        const res = await fetch(`${apiUrl}/candidates/count`);
+        const data = await res.json();
+        if (data && data.total_amount !== undefined) {
+          setDbCount(data.total_amount);
+        }
       } catch (err) {}
     };
     fetchCount();

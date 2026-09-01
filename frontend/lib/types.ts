@@ -48,6 +48,10 @@ export interface EvaluationEvidenceItem {
 export interface CandidateResult {
   candidate_id: number;
   name?: string;
+  email?: string;
+  phone?: string;
+  current_company?: string;
+  resume_url?: string;
   current_title?: string;
   total_experience_years?: number;
   final_score: number;

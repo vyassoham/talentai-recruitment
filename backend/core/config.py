@@ -58,8 +58,8 @@ class Settings(BaseSettings):
     RETRIEVAL_WEIGHT_SEMANTIC: float = 0.3
     RETRIEVAL_WEIGHT_EXPERIENCE: float = 0.2
     RETRIEVAL_WEIGHT_PREFERRED: float = 0.1
-    RETRIEVAL_TOP_K: int = 200
-    RERANK_TOP_N: int = 10
+    RETRIEVAL_TOP_K: int = 50
+    RERANK_TOP_N: int = 5
     RERANK_CONCURRENCY: int = 5
 
     # Storage & Uploads
