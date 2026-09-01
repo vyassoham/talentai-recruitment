@@ -48,6 +48,21 @@ async def search_candidates(
             mandatory_skills=[{"canonical_skill_name": "Python"}, {"canonical_skill_name": "FastAPI"}] if not request.query else [{"canonical_skill_name": w.strip()} for w in request.query.split() if len(w) > 3][:3],
             min_experience_years=0.0
         )
+    else:
+        # Detach from session to avoid persisting temporary overrides
+        db.expunge(job)
+        
+    if request.query:
+        # Generate on-the-fly embedding for the natural language query
+        try:
+            provider = get_ai_provider()
+            q_emb, _ = provider.generate_embeddings(request.query)
+            job.embedding = q_emb
+            # Prepend the custom query so the AIReranker evaluates candidates against it
+            job.raw_description = f"CRITICAL USER REQUIREMENT: {request.query}\n\nOriginal JD Context:\n{job.raw_description or ''}"
+            job.title = f"Custom Search: {request.query[:50]}"
+        except Exception:
+            pass
         
     # 2. Parameterized SQL Pre-Filtering & Eager Loading
     candidate_query = db.query(Candidate).options(selectinload(Candidate.skills))
