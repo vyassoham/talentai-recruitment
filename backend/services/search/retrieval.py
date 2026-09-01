@@ -35,16 +35,32 @@ class RetrievalResult:
     def to_dict(self):
         doc = self.candidate.documents[0] if self.candidate.documents else None
         resume_url = None
-        if doc and doc.storage_key:
-            if doc.storage_key.endswith(".pdf") or doc.storage_key.endswith(".docx"):
+        email = self.candidate.email
+        phone = self.candidate.phone
+        
+        if doc:
+            if doc.storage_key and (doc.storage_key.endswith(".pdf") or doc.storage_key.endswith(".docx")):
                 # Supabase public URL construct
                 resume_url = f"https://csbuterahmvmtkeccoia.supabase.co/storage/v1/object/public/resumes/{doc.storage_key}"
+                
+            # Fallback regex extraction if missing in DB
+            if doc.raw_extracted_text:
+                import re
+                if not email:
+                    emails = re.findall(r'[\w\.-]+@[\w\.-]+', doc.raw_extracted_text)
+                    if emails: email = emails[0]
+                if not phone:
+                    phones = re.findall(r'(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}', doc.raw_extracted_text)
+                    for p in phones:
+                        if 10 <= len(re.sub(r'\D', '', p)) <= 14:
+                            phone = p.strip()
+                            break
 
         return {
             "candidate_id": str(self.candidate.id),
             "name": self.candidate.name,
-            "email": self.candidate.email,
-            "phone": self.candidate.phone,
+            "email": email,
+            "phone": phone,
             "current_company": self.candidate.current_company,
             "resume_url": resume_url,
             "retrieval_score": round(self.retrieval_score, 4),
