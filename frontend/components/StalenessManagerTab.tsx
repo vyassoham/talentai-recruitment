@@ -20,7 +20,9 @@ export const StalenessManagerTab: React.FC = () => {
     setRefreshMsg(null);
     try {
       const data = await api.getStaleCandidates(thresholdDays, 25);
-      setStaleCandidates(data);
+      // The API might return an array directly, or an object { stale_profiles: [...], total: ... }
+      const profiles = Array.isArray(data) ? data : (data as any).stale_profiles || [];
+      setStaleCandidates(profiles);
     } catch (err: any) { setStaleCandidates([]); alert('Failed to fetch stale candidates.'); } finally {
       setIsLoading(false);
     }
