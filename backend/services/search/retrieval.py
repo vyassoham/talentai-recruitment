@@ -63,6 +63,8 @@ class RetrievalResult:
             "phone": phone,
             "current_title": self.candidate.current_title,
             "total_experience_years": self.candidate.total_experience_years,
+            "location": self.candidate.location,
+            "gender": self.candidate.demographics.gender if self.candidate.demographics else None,
             "current_company": self.candidate.current_company,
             "resume_url": resume_url,
             "retrieval_score": round(self.retrieval_score, 4),
