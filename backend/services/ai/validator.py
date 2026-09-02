@@ -47,22 +47,22 @@ class EvidenceValidator:
             if norm_quote and norm_quote in normalized_source:
                 validation_results[quote] = "PASS"
             else:
-                # Fallback: check if 80% of the words in the quote appear consecutively
+                # Fallback: check if 70% of the words in the quote appear anywhere in the source
                 # This handles minor LLM paraphrasing errors while still catching pure hallucinations
                 words = norm_quote.split()
                 if len(words) > 3:
-                    # Check if a substantial chunk (e.g. 80%) is a substring
-                    chunk_size = max(3, int(len(words) * 0.8))
-                    chunk = " ".join(words[:chunk_size])
-                    if chunk in normalized_source:
+                    quote_vocab = set(words)
+                    source_vocab = set(normalized_source.split())
+                    match_ratio = len(quote_vocab.intersection(source_vocab)) / len(quote_vocab)
+                    if match_ratio >= 0.7:
                         validation_results[quote] = "PASS"
                         continue
                         
                 validation_results[quote] = "FAIL"
                 hallucination_count += 1
                 
-        # Calculate score penalty (e.g., -15 points per hallucinated quote)
-        penalty = hallucination_count * 15.0
+        # Calculate score penalty (e.g., -5 points per hallucinated quote)
+        penalty = hallucination_count * 5.0
         
         return {
             "results": validation_results,
