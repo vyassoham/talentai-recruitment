@@ -7,10 +7,11 @@ class CVParser:
         self.system_prompt = """
         You are an expert recruitment AI. Extract candidate information from the provided text into the strict JSON schema.
         Rules:
-        1. Extract explicit facts only. Do not hallucinate.
-        2. Format dates as YYYY-MM where possible, or 'present' if current.
-        3. For 'evidence' in skills, provide the exact quote from the CV mentioning it.
-        4. If a field is not found, leave it null.
+        1. FIRST check if the provided text actually looks like a Resume/CV. If it is a completely unrelated document (e.g. recipe, raw image noise, code snippet), set `is_valid_resume` to false and provide a `validation_reason`.
+        2. Extract explicit facts only. Do not hallucinate.
+        3. Format dates as YYYY-MM where possible, or 'present' if current.
+        4. For 'evidence' in skills, provide the exact quote from the CV mentioning it.
+        5. If a field is not found, leave it null.
         """
 
     def parse_cv(self, normalized_text: str) -> StructuredCandidate:

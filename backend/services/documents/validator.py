@@ -45,27 +45,9 @@ class DocumentValidator:
         if size == 0:
             return False, "File is empty (0 bytes)"
 
-        # 2. Check File Extension
-        ext = os.path.splitext(filename)[1].lower()
-        if ext not in cls.ALLOWED_EXTENSIONS:
-            return False, f"Unsupported file extension: {ext}"
-
         # 3. ClamAV Antivirus Scanning
         is_clean, threat = SecurityUtils.scan_file_for_malware(content)
         if not is_clean:
             return False, f"Security Violation: Malware detected ({threat})"
-
-        # 4. MIME Type Detection
-        try:
-            if HAS_MAGIC:
-                chunk = content[:2048]
-                mime = magic.from_buffer(chunk, mime=True)
-                if mime not in cls.ALLOWED_MIME_TYPES:
-                    if ext == '.docx' and mime == 'application/zip':
-                        pass # Allow docx zip containers
-                    else:
-                        return False, f"Unsupported MIME type: {mime}"
-        except Exception as e:
-            logger.debug(f"MIME magic check skipped: {e}")
 
         return True, ""

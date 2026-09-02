@@ -25,6 +25,9 @@ class DocumentExtractor:
                 return self._extract_pdf(file_path)
             elif ext == '.docx':
                 return self._extract_docx(file_path)
+            elif ext in ['.txt', '.md', '.csv']:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    return f.read()
             else:
                 raise ExtractionError(f"Unsupported extraction format: {ext}")
         except Exception as e:

@@ -43,6 +43,14 @@ class IngestionPipeline:
                 self._transition(db, job, doc, "PARSING")
                 parser = CVParser()
                 structured = parser.parse_cv(doc.normalized_text)
+                
+                if not structured.is_valid_resume:
+                    reason = structured.validation_reason or "Document does not appear to be a valid Resume/CV"
+                    self._transition(db, job, doc, "FAILED", error=reason, status="FAILED")
+                    db.delete(doc) # Optionally delete the invalid document to save space
+                    db.commit()
+                    return
+                
                 # Keep in memory for next step
                 
             if job.stage in ["PARSING", "NORMALIZING_SKILLS", "CALCULATING_EXPERIENCE", "DEDUPLICATING"]:

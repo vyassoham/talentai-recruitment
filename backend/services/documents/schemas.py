@@ -19,6 +19,8 @@ class ParsedEmployment(BaseModel):
     skills: List[str] = Field(default_factory=list)
 
 class StructuredCandidate(BaseModel):
+    is_valid_resume: bool = Field(description="MUST BE EVALUATED: Set to false ONLY IF the document is clearly not a resume/CV (e.g. an image, a random text file, or unsupported document). Set to true if it is a CV.")
+    validation_reason: Optional[str] = Field(description="If is_valid_resume is false, explain why.")
     name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
