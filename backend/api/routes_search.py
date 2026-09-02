@@ -68,7 +68,11 @@ async def search_candidates(
             pass
         
     # 2. Parameterized SQL Pre-Filtering & Eager Loading
-    candidate_query = db.query(Candidate).options(selectinload(Candidate.skills))
+    candidate_query = db.query(Candidate).options(
+        selectinload(Candidate.skills),
+        selectinload(Candidate.demographics),
+        selectinload(Candidate.documents)
+    )
     
     if job.min_experience_years is not None and job.min_experience_years > 0:
         candidate_query = candidate_query.filter(
