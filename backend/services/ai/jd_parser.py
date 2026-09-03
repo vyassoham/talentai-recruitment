@@ -16,6 +16,8 @@ CRITICAL RULES FOR CLASSIFICATION:
 - Industry experience (Fintech, Healthcare) -> Put in `domain_requirements`, not as a technical skill. DO NOT invent a canonical technical skill for a domain.
 - Soft skills ("Strong communication") -> Set category="Soft Skill", evaluation_mode="CONTEXTUAL".
 
+CRITICAL: You MUST provide a `canonical_skill_name` for every technical skill (e.g., "PostgreSQL with pgvector" -> "PostgreSQL", "Next.js 14" -> "Next.js"). This is used for database normalization.
+
 For every requirement, the `original_text` MUST be an exact quote or very close paraphrase from the JD.
 """
 
