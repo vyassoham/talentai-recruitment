@@ -50,6 +50,8 @@ export interface CandidateResult {
   name?: string;
   email?: string;
   phone?: string;
+  location?: string;
+  gender?: string;
   current_company?: string;
   resume_url?: string;
   current_title?: string;
@@ -65,6 +67,7 @@ export interface CandidateResult {
   social_links?: Record<string, string>;
   engineering_quality_score?: number;
   external_evidence?: string;
+  best_matching_section?: string;
 }
 
 export interface SearchTelemetry {
