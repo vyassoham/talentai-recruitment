@@ -57,7 +57,9 @@ class IngestionPipeline:
                 # Grouped Candidate DB writes
                 self._transition(db, job, doc, "SAVING_CANDIDATE")
                 cand_service = CandidateService(db)
-                candidate = cand_service.save_structured_candidate(doc.id, structured)
+                from services.ai.provider import get_ai_provider
+                ai_provider = get_ai_provider()
+                candidate = cand_service.save_structured_candidate(doc.id, structured, provider=ai_provider)
                 doc.parsing_status = "COMPLETED"
                 db.commit()
                 

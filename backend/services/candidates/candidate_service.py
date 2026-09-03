@@ -1,15 +1,24 @@
+import logging
 from sqlalchemy.orm import Session
-from models.all_models import Candidate, CandidateSkill, Employment, CandidateDocument
+from models.all_models import Candidate, CandidateSkill, Employment, CandidateDocument, CandidateDemographics
 from services.documents.schemas import StructuredCandidate
 from services.candidates.skill_normalizer import SkillNormalizer
 from services.candidates.experience import ExperienceCalculator
 from services.candidates.deduplication import DeduplicationService
+from services.candidates.gender_detector import GenderDetector
+
+logger = logging.getLogger(__name__)
 
 class CandidateService:
     def __init__(self, db: Session):
         self.db = db
 
-    def save_structured_candidate(self, document_id: int, structured_data: StructuredCandidate) -> Candidate:
+    def save_structured_candidate(
+        self,
+        document_id: int,
+        structured_data: StructuredCandidate,
+        provider=None  # Optional AI provider (injected for gender LLM tier)
+    ) -> Candidate:
         document = self.db.get(CandidateDocument, document_id)
         if not document:
             raise ValueError("Document not found")
@@ -71,6 +80,38 @@ class CandidateService:
                 confidence=skill_data.confidence
             )
             self.db.add(skill)
+
+        # 4. Gender Detection (Multi-Tier: Pronouns → Name Dict → LLM)
+        try:
+            cv_text = document.normalized_text or document.raw_extracted_text or ""
+            detected_gender = GenderDetector.detect(
+                name=structured_data.name,
+                cv_text=cv_text,
+                provider=provider
+            )
+
+            # Upsert CandidateDemographics record
+            existing_demo = self.db.query(CandidateDemographics).filter_by(
+                candidate_id=candidate.id
+            ).first()
+
+            if existing_demo:
+                # Only overwrite "Unknown" — never overwrite self-declared gender
+                if existing_demo.gender in (None, "Unknown", ""):
+                    existing_demo.gender = detected_gender
+            else:
+                demo = CandidateDemographics(
+                    candidate_id=candidate.id,
+                    gender=detected_gender
+                )
+                self.db.add(demo)
+
+            logger.info(
+                f"GenderDetector: candidate_id={candidate.id} name='{structured_data.name}' → gender='{detected_gender}'"
+            )
+        except Exception as e:
+            logger.warning(f"Gender detection failed for candidate {candidate.id}: {e}")
             
         self.db.commit()
         return candidate
+
