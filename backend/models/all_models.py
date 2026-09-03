@@ -61,6 +61,7 @@ class Candidate(Base):
     skills = relationship("CandidateSkill", back_populates="candidate", cascade="all, delete-orphan")
     employments = relationship("Employment", back_populates="candidate", cascade="all, delete-orphan")
     demographics = relationship("CandidateDemographics", back_populates="candidate", uselist=False, cascade="all, delete-orphan")
+    section_embeddings = relationship("CandidateSectionEmbedding", back_populates="candidate", cascade="all, delete-orphan")
 
 class CandidateDemographics(Base):
     __tablename__ = "candidate_demographics"
@@ -73,6 +74,29 @@ class CandidateDemographics(Base):
     disability_status = Column(String, nullable=True)
     
     candidate = relationship("Candidate", back_populates="demographics")
+
+
+class CandidateSectionEmbedding(Base):
+    """
+    Advanced Multi-Vector Chunked Embedding representation (ColBERT-style MaxSim).
+    Stores distinct 1536-dim vector embeddings for separate candidate sections:
+    SKILLS, SUMMARY, individual EMPLOYMENT roles, PROJECTS, and ENRICHMENT evidence.
+    Solves the 'Lost in the Middle' problem.
+    """
+    __tablename__ = "candidate_section_embeddings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_id = Column(Integer, ForeignKey("candidates.id", ondelete="CASCADE"), index=True)
+    
+    section_type = Column(String, index=True) # 'SKILLS', 'SUMMARY', 'EXPERIENCE', 'PROJECT', 'ENRICHMENT'
+    section_title = Column(String, nullable=True) # e.g. "Senior Backend Engineer at TechCorp"
+    content_chunk = Column(Text) # Extracted section text
+    embedding = Column(Vector(1536), nullable=True) # Dedicated embedding vector for THIS section
+    
+    created_at = Column(DateTime, default=_utcnow)
+
+    candidate = relationship("Candidate", back_populates="section_embeddings")
+
 
 
 class CandidateDocument(Base):

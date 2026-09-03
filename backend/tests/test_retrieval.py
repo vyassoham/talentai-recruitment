@@ -63,3 +63,47 @@ def test_hybrid_retrieval_scoring():
     assert results[1]["candidate_id"] == "2"
     assert "AWS" in results[1]["missing_preferred_skills"]
     assert results[1]["experience_signal"] == 0.5 # 5/10 max
+
+def test_candidate_section_chunking():
+    from services.ai.embeddings import EmbeddingsService
+    from models.all_models import Employment
+    
+    cand = Candidate(
+        id=10,
+        name="Alice Tech",
+        current_title="Lead Architect",
+        total_experience_years=8.0,
+        location="San Francisco",
+        skills=[
+            CandidateSkill(original_extracted_skill="Python"),
+            CandidateSkill(original_extracted_skill="Kubernetes")
+        ],
+        employments=[
+            Employment(
+                job_title="Senior DevOps",
+                company="CloudTech",
+                description="Engineered Kubernetes clusters with Helm.",
+                extracted_skills=["Kubernetes", "Helm", "Docker"]
+            )
+        ],
+        external_evidence="GitHub: 50+ repositories in distributed systems."
+    )
+    
+    chunks = EmbeddingsService.chunk_candidate_sections(cand)
+    types = [c["section_type"] for c in chunks]
+    
+    assert "SUMMARY" in types
+    assert "SKILLS" in types
+    assert "EXPERIENCE" in types
+    assert "ENRICHMENT" in types
+    
+    # Check that skills chunk contains the actual extracted skills
+    skills_chunk = next(c for c in chunks if c["section_type"] == "SKILLS")
+    assert "Python" in skills_chunk["content_chunk"]
+    assert "Kubernetes" in skills_chunk["content_chunk"]
+    
+    # Check that experience chunk contains role & company
+    exp_chunk = next(c for c in chunks if c["section_type"] == "EXPERIENCE")
+    assert "Senior DevOps" in exp_chunk["content_chunk"]
+    assert "CloudTech" in exp_chunk["content_chunk"]
+

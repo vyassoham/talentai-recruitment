@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select
-from models.all_models import Candidate, JobRequirement
+from models.all_models import Candidate, JobRequirement, CandidateSectionEmbedding
 from services.search.eligibility import CandidateEligibilityResult
 from core.config import settings
 
@@ -19,6 +19,7 @@ class RetrievalResult:
         self.semantic_similarity = 0.0
         self.experience_signal = 0.0
         self.preferred_skill_signal = 0.0
+        self.best_matching_section: Optional[str] = None
         
         self.matched_skills = []
         self.missing_preferred_skills = []
@@ -71,6 +72,7 @@ class RetrievalResult:
             "skill_match_score": round(self.skill_match_score, 4),
             "semantic_similarity": round(self.semantic_similarity, 4),
             "experience_signal": round(self.experience_signal, 4),
+            "best_matching_section": self.best_matching_section,
             "matched_skills": self.matched_skills,
             "missing_preferred_skills": self.missing_preferred_skills,
             "eligibility_status": "ELIGIBLE" if self.eligibility.eligible else "INELIGIBLE"
@@ -82,7 +84,8 @@ class HybridRetrievalEngine:
 
     def retrieve(self, job: JobRequirement, eligible_results: List[CandidateEligibilityResult], top_k: int = 200) -> List[Dict[str, Any]]:
         """
-        Executes hybrid retrieval combining SQL structured search, ontology matching, and pgvector.
+        Executes hybrid retrieval combining SQL structured search, ontology matching, 
+        and Multi-Vector ColBERT-style MaxSim pgvector search.
         Returns the top K candidates as structured dicts.
         """
         if not eligible_results:
@@ -103,25 +106,49 @@ class HybridRetrievalEngine:
         preferred_ids = [r.get("canonical_skill_id") for r in (job.preferred_skills or []) if r.get("canonical_skill_id")]
         preferred_names = [r.get("canonical_skill_name") for r in (job.preferred_skills or []) if r.get("canonical_skill_name")]
 
-        # A. Semantic Similarity (Real pgvector)
-        # We query the DB explicitly using the pgvector operator for the eligible candidates
+        # -------------------------------------------------------------
+        # A. Semantic Similarity: Multi-Vector ColBERT MaxSim (pgvector)
+        # -------------------------------------------------------------
         vector_distances = {}
+        section_max_sims = {}
+        best_matching_sections = {}
+
         if job_embedding:
             try:
-                # Actual PostgreSQL/pgvector query
+                # 1. Global Candidate Embedding similarity
                 dist_records = self.db.query(
                     Candidate.id,
                     Candidate.embedding.cosine_distance(job_embedding).label("distance")
-                ).filter(Candidate.id.in_(candidate_ids)).all()
+                ).filter(
+                    Candidate.id.in_(candidate_ids),
+                    Candidate.embedding.isnot(None)
+                ).all()
                 
                 for rec in dist_records:
                     if rec.distance is not None:
-                        # Convert distance to similarity (0 to 1)
-                        # Cosine distance ranges 0 to 2. Similarity = 1 - (distance / 2) roughly, or just 1 - distance if normalized
                         vector_distances[rec.id] = max(0.0, 1.0 - rec.distance)
+
+                # 2. Multi-Vector Chunked Section MaxSim Query (ColBERT-style)
+                # Evaluates skills, summary, and each individual job role separately
+                section_dist_records = self.db.query(
+                    CandidateSectionEmbedding.candidate_id,
+                    CandidateSectionEmbedding.embedding.cosine_distance(job_embedding).label("distance"),
+                    CandidateSectionEmbedding.section_title
+                ).filter(
+                    CandidateSectionEmbedding.candidate_id.in_(candidate_ids),
+                    CandidateSectionEmbedding.embedding.isnot(None)
+                ).all()
+                
+                for s_rec in section_dist_records:
+                    if s_rec.distance is not None:
+                        s_sim = max(0.0, 1.0 - s_rec.distance)
+                        cand_id = s_rec.candidate_id
+                        if cand_id not in section_max_sims or s_sim > section_max_sims[cand_id]:
+                            section_max_sims[cand_id] = s_sim
+                            best_matching_sections[cand_id] = s_rec.section_title
+
             except Exception:
-                # Fallback if DB doesn't support it (e.g. mock DB in unit tests)
-                # DO NOT emulate in production
+                # Fallback if DB doesn't support pgvector (e.g. mock DB in tests)
                 pass
 
         # Ensure we don't divide by zero
@@ -131,8 +158,17 @@ class HybridRetrievalEngine:
         for c in candidates:
             res = RetrievalResult(c, eligible_map[c.id])
             
-            # --- A. Semantic Similarity ---
-            res.semantic_similarity = vector_distances.get(c.id, 0.0)
+            # --- A. Semantic Similarity (ColBERT MaxSim Boost) ---
+            global_sim = vector_distances.get(c.id, 0.0)
+            sec_sim = section_max_sims.get(c.id, 0.0)
+            
+            # If a specific section (e.g. specialized past job or core skill chunk)
+            # has high similarity, elevate candidate with MaxSim
+            if sec_sim > 0:
+                res.semantic_similarity = max(global_sim, sec_sim)
+                res.best_matching_section = best_matching_sections.get(c.id)
+            else:
+                res.semantic_similarity = global_sim
 
             # --- B. Experience Signal ---
             # Normalized against the pool max
