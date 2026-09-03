@@ -66,8 +66,8 @@ class AIReranker:
                 quotes = [req.evidence for req in assessments if req.evidence]
                 external_data = candidate.external_evidence if candidate else ""
                 
-                # Independent evidence verification
-                val_result = EvidenceValidator.validate_quotes(cv_text, external_data, quotes)
+                # Independent evidence verification with LLM-as-a-Judge
+                val_result = EvidenceValidator.validate_quotes(cv_text, external_data, quotes, provider=self.provider)
                 validation_results = val_result["results"]
                 penalty_points = val_result["penalty"]
                 hallucinations = val_result["hallucination_count"]

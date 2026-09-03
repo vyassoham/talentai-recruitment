@@ -18,13 +18,10 @@ def test_experience_calculator():
 
 def test_document_validator():
     with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
-        tmp.write(b"%PDF-1.4...")
-        tmp.seek(0)
-        
-        # Test extension limit
-        is_valid, err = DocumentValidator.validate(tmp, "test.txt")
+        # Test empty file
+        is_valid, err = DocumentValidator.validate(tmp, "empty.pdf")
         assert not is_valid
-        assert "extension" in err
+        assert "empty" in err
         
         # Note: magic mime detection might fail locally without libmagic, 
         # so we won't assert the True path strictly in this mock test without real files.
