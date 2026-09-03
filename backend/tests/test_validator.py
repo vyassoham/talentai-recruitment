@@ -1,5 +1,6 @@
 import pytest
 from services.ai.validator import EvidenceValidator, BatchValidationResult, QuoteValidationItem
+from services.ai.provider import MockProvider
 
 def test_evidence_validator_exact_match():
     cv = "Experienced Python developer with 5 years in Django."
@@ -22,7 +23,7 @@ def test_evidence_validator_hallucination():
     cv = "Experienced Python developer."
     quotes = ["Experienced Python developer", "10 years of Kubernetes experience"]
     
-    result = EvidenceValidator.validate_quotes(cv, "", quotes, penalty_per_hallucination=5.0)
+    result = EvidenceValidator.validate_quotes(cv, "", quotes, provider=MockProvider(), penalty_per_hallucination=5.0)
     assert result["hallucination_count"] == 1
     assert result["penalty"] == 5.0
     assert result["results"]["10 years of Kubernetes experience"] == "FAIL"
@@ -40,7 +41,7 @@ def test_evidence_validator_partial_chunk():
     # The LLM slightly misquoted, adding "architecture" at the end, but the chunk is mostly there
     quotes = ["Led the migration of the backend monolith to AWS microservices architecture."]
     
-    result = EvidenceValidator.validate_quotes(cv, "", quotes)
+    result = EvidenceValidator.validate_quotes(cv, "", quotes, provider=MockProvider())
     assert result["hallucination_count"] == 0
 
 def test_evidence_validator_llm_judge_semantic_paraphrase():

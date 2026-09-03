@@ -178,6 +178,7 @@ class Ontology(Base):
     canonical_name = Column(String, unique=True, index=True)
     category = Column(String) 
     aliases = Column(JSON) 
+    embedding = Column(Vector(1536), nullable=True) 
 
 class AIRegistry(Base):
     __tablename__ = "ai_registry"
