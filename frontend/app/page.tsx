@@ -55,7 +55,7 @@ export default function Home() {
         />
 
         {/* Main Container */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 relative z-10">
+        <main className="flex-1 w-full px-3 sm:px-5 lg:px-8 py-6 space-y-6 relative z-10" style={{maxWidth: '100%'}}>
           
           {/* Tab Content */}
           {activeTab === "match" && (
@@ -92,8 +92,8 @@ export default function Home() {
         />
 
         {/* Minimal Footer */}
-        <footer className="border-t border-white/10 bg-[#0A0A0A]/80 backdrop-blur-md py-6 mt-12 text-xs text-zinc-500 relative z-10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <footer className="border-t border-white/10 bg-[#0A0A0A]/80 backdrop-blur-md py-4 mt-12 text-xs text-zinc-500 relative z-10">
+          <div className="w-full px-3 sm:px-5 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span className="text-zinc-400">TalentAI Workspace</span>
