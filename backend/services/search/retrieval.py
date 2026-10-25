@@ -1,9 +1,15 @@
+import re
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select
-from models.all_models import Candidate, JobRequirement, CandidateSectionEmbedding
+from models.all_models import Candidate, JobRequirement, CandidateSectionEmbedding, RecruiterFeedback
 from services.search.eligibility import CandidateEligibilityResult
 from core.config import settings
+
+# Precompiled regex for fast contact extraction (avoids repetitive recompilation and CPU spikes)
+EMAIL_REGEX = re.compile(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+')
+PHONE_REGEX = re.compile(r'(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}')
+NON_DIGIT_REGEX = re.compile(r'\D')
 
 # Configurable retrieval weights
 W_SKILL = settings.RETRIEVAL_WEIGHT_SKILL
@@ -40,22 +46,23 @@ class RetrievalResult:
         phone = self.candidate.phone
         
         if doc:
-            if doc.storage_key and (doc.storage_key.endswith(".pdf") or doc.storage_key.endswith(".docx")):
-                # Supabase public URL construct
-                resume_url = f"https://csbuterahmvmtkeccoia.supabase.co/storage/v1/object/public/resumes/{doc.storage_key}"
-                
-            # Fallback regex extraction if missing in DB
-            if doc.raw_extracted_text:
-                import re
+            # Fallback regex extraction only if missing in DB (bounded to first 2500 chars to avoid CPU spikes on 50KB strings)
+            if (not email or not phone) and doc.raw_extracted_text:
+                header_text = doc.raw_extracted_text[:2500]
                 if not email:
-                    emails = re.findall(r'[\w\.-]+@[\w\.-]+', doc.raw_extracted_text)
-                    if emails: email = emails[0]
+                    m_email = EMAIL_REGEX.search(header_text)
+                    if m_email:
+                        email = m_email.group(0)
                 if not phone:
-                    phones = re.findall(r'(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{2,4}\)?[\s-]?)?\d{3,4}[\s-]?\d{3,4}', doc.raw_extracted_text)
-                    for p in phones:
-                        if 10 <= len(re.sub(r'\D', '', p)) <= 14:
-                            phone = p.strip()
+                    for m_phone in PHONE_REGEX.finditer(header_text):
+                        candidate_phone = m_phone.group(0)
+                        digits = NON_DIGIT_REGEX.sub('', candidate_phone)
+                        if 10 <= len(digits) <= 14:
+                            phone = candidate_phone.strip()
                             break
+
+        # Guaranteed resume preview link (works for local files, cloud files, and auto-synthesized PDFs)
+        resume_url = f"http://127.0.0.1:8000/api/v1/candidates/{self.candidate.id}/resume"
 
         return {
             "candidate_id": str(self.candidate.id),
@@ -79,10 +86,31 @@ class RetrievalResult:
         }
 
 class HybridRetrievalEngine:
+    _HAS_SECTION_EMBEDDINGS: Optional[bool] = None
+
     def __init__(self, db: Session):
         self.db = db
 
-    def retrieve(self, job: JobRequirement, eligible_results: List[CandidateEligibilityResult], top_k: int = 200) -> List[Dict[str, Any]]:
+    @classmethod
+    def check_has_section_embeddings(cls, db: Session) -> bool:
+        if cls._HAS_SECTION_EMBEDDINGS is None:
+            try:
+                cls._HAS_SECTION_EMBEDDINGS = db.query(CandidateSectionEmbedding.id).first() is not None
+            except Exception:
+                cls._HAS_SECTION_EMBEDDINGS = False
+        return cls._HAS_SECTION_EMBEDDINGS
+
+    @classmethod
+    def notify_section_embeddings_created(cls):
+        cls._HAS_SECTION_EMBEDDINGS = True
+
+    def retrieve(
+        self, 
+        job: JobRequirement, 
+        eligible_results: List[CandidateEligibilityResult], 
+        top_k: int = 200,
+        candidates: Optional[List[Candidate]] = None
+    ) -> List[Dict[str, Any]]:
         """
         Executes hybrid retrieval combining SQL structured search, ontology matching, 
         and Multi-Vector ColBERT-style MaxSim pgvector search.
@@ -95,11 +123,45 @@ class HybridRetrievalEngine:
         eligible_map = {res.candidate_id: res for res in eligible_results}
         candidate_ids = list(eligible_map.keys())
 
-        # 1. Fetch the actual Candidate objects with eager loading of skills and documents (eliminates N+1)
-        candidates = self.db.query(Candidate).options(selectinload(Candidate.skills), selectinload(Candidate.documents)).filter(Candidate.id.in_(candidate_ids)).all()
+        # 1. Reuse preloaded candidates or fetch if not provided (eliminates duplicate DB table scan)
+        if candidates is not None:
+            candidates = [c for c in candidates if c.id in eligible_map]
+        else:
+            candidates = self.db.query(Candidate).options(
+                selectinload(Candidate.skills),
+                selectinload(Candidate.demographics),
+                selectinload(Candidate.documents),
+                selectinload(Candidate.employments)
+            ).filter(Candidate.id.in_(candidate_ids)).all()
         
         results = []
         job_embedding = job.embedding
+
+        # --- RLHF Active Learning (Rocchio Relevance Feedback) ---
+        # Adjusts the semantic search vector dynamically based on previous recruiter feedback.
+        if job_embedding and job.id:
+            try:
+                import numpy as np
+                feedbacks = self.db.query(RecruiterFeedback).filter(RecruiterFeedback.job_id == job.id).all()
+                if feedbacks:
+                    f_map = {f.candidate_id: f.feedback_type for f in feedbacks}
+                    f_cands = self.db.query(Candidate.id, Candidate.embedding).filter(Candidate.id.in_(f_map.keys())).all()
+                    
+                    q_vec = np.array(job_embedding)
+                    rel = [np.array(c.embedding) for c in f_cands if c.embedding and f_map.get(c.id) in ["SHORTLIST", "INTERVIEW"]]
+                    nrel = [np.array(c.embedding) for c in f_cands if c.embedding and f_map.get(c.id) == "REJECT"]
+                    
+                    if rel or nrel:
+                        # Rocchio formula: q_m = q_0 + alpha * mean(rel) - beta * mean(nrel)
+                        if rel: q_vec = q_vec + 0.3 * np.mean(rel, axis=0)
+                        if nrel: q_vec = q_vec - 0.4 * np.mean(nrel, axis=0)
+                        
+                        norm = np.linalg.norm(q_vec)
+                        if norm > 0:
+                            job_embedding = (q_vec / norm).tolist()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"RLHF adjustment failed: {e}")
 
         # 2. Extract job skills for scoring
         mandatory_ids = [r.get("canonical_skill_id") for r in (job.mandatory_skills or []) if r.get("canonical_skill_id")]
@@ -129,23 +191,24 @@ class HybridRetrievalEngine:
                         vector_distances[rec.id] = max(0.0, 1.0 - rec.distance)
 
                 # 2. Multi-Vector Chunked Section MaxSim Query (ColBERT-style)
-                # Evaluates skills, summary, and each individual job role separately
-                section_dist_records = self.db.query(
-                    CandidateSectionEmbedding.candidate_id,
-                    CandidateSectionEmbedding.embedding.cosine_distance(job_embedding).label("distance"),
-                    CandidateSectionEmbedding.section_title
-                ).filter(
-                    CandidateSectionEmbedding.candidate_id.in_(candidate_ids),
-                    CandidateSectionEmbedding.embedding.isnot(None)
-                ).all()
-                
-                for s_rec in section_dist_records:
-                    if s_rec.distance is not None:
-                        s_sim = max(0.0, 1.0 - s_rec.distance)
-                        cand_id = s_rec.candidate_id
-                        if cand_id not in section_max_sims or s_sim > section_max_sims[cand_id]:
-                            section_max_sims[cand_id] = s_sim
-                            best_matching_sections[cand_id] = s_rec.section_title
+                # Evaluates skills, summary, and each individual job role separately (bypassed if table is empty)
+                if self.check_has_section_embeddings(self.db):
+                    section_dist_records = self.db.query(
+                        CandidateSectionEmbedding.candidate_id,
+                        CandidateSectionEmbedding.embedding.cosine_distance(job_embedding).label("distance"),
+                        CandidateSectionEmbedding.section_title
+                    ).filter(
+                        CandidateSectionEmbedding.candidate_id.in_(candidate_ids),
+                        CandidateSectionEmbedding.embedding.isnot(None)
+                    ).all()
+                    
+                    for s_rec in section_dist_records:
+                        if s_rec.distance is not None:
+                            s_sim = max(0.0, 1.0 - s_rec.distance)
+                            cand_id = s_rec.candidate_id
+                            if cand_id not in section_max_sims or s_sim > section_max_sims[cand_id]:
+                                section_max_sims[cand_id] = s_sim
+                                best_matching_sections[cand_id] = s_rec.section_title
 
             except Exception:
                 # Fallback if DB doesn't support pgvector (e.g. mock DB in tests)

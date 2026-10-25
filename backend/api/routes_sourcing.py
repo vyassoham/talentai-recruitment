@@ -4,7 +4,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.auth import require_role
+from core.auth import require_role, verify_api_key
 from core.rate_limiter import rate_limit
 from models.all_models import User
 
@@ -27,7 +27,8 @@ class StackOverflowSourceRequest(BaseModel):
 def source_from_github(
     request: GitHubSourceRequest,
     current_user: User = Depends(require_role("RECRUITER")),
-    _rate_check = Depends(rate_limit(max_requests=10, window_seconds=60))
+    _rate_check = Depends(rate_limit(max_requests=10, window_seconds=60)),
+    _api_key: str = Depends(verify_api_key)
 ):
     """
     Actively searches GitHub for developers matching a skill/location profile.
@@ -41,7 +42,16 @@ def source_from_github(
         min_repos=request.min_repos,
         max_results=request.max_results
     )
-    return discovered or []
+    if not discovered:
+        return {"status": "NO_RESULTS", "candidates_discovered": 0}
+    ingest_res = PassiveSourcer.ingest_discovered_candidates(discovered)
+    return {
+        "status": "SUCCESS",
+        "candidates_discovered": len(discovered),
+        "candidates_created": ingest_res.get("created", 0),
+        "skipped_duplicates": ingest_res.get("skipped_duplicates", 0),
+        "candidates": discovered
+    }
 
 @router.post("/sourcing/stackoverflow")
 def source_from_stackoverflow(
@@ -59,7 +69,16 @@ def source_from_stackoverflow(
         min_reputation=request.min_reputation,
         max_results=request.max_results
     )
-    return discovered or []
+    if not discovered:
+        return {"status": "NO_RESULTS", "candidates_discovered": 0}
+    ingest_res = PassiveSourcer.ingest_discovered_candidates(discovered)
+    return {
+        "status": "SUCCESS",
+        "candidates_discovered": len(discovered),
+        "candidates_created": ingest_res.get("created", 0),
+        "skipped_duplicates": ingest_res.get("skipped_duplicates", 0),
+        "candidates": discovered
+    }
 
 class IngestRequest(BaseModel):
     candidates: List[dict]

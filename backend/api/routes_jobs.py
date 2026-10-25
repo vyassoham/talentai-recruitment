@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from core.database import get_db
 from core.queue import queue_client
-from core.auth import require_role
+from core.auth import require_role, verify_api_key
 from core.rate_limiter import rate_limit
 from models.all_models import JobRequirement, User
 from services.jobs.job_service import background_process_jd
@@ -21,7 +21,8 @@ class ParseJobRequest(BaseModel):
 def parse_job(
     request: ParseJobRequest, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("RECRUITER"))
+    current_user: User = Depends(require_role("RECRUITER")),
+    _api_key: str = Depends(verify_api_key)
 ):
     try:
         from services.jobs.job_service import JobService
@@ -39,6 +40,23 @@ def parse_job(
         for p in (job.preferred_skills or []):
             reqs.append({"name": p.get("canonical_skill_name"), "type": "PREFERRED", "weight": 0.5})
             
+        # Register / upsert BackgroundJob record so queue tracking is synced
+        try:
+            from models.all_models import BackgroundJob
+            existing_bg = db.get(BackgroundJob, str(job.id))
+            if not existing_bg:
+                bg_job = BackgroundJob(
+                    id=str(job.id),
+                    job_type="JD_PARSING",
+                    status="COMPLETED",
+                    payload={"job_id": str(job.id), "title": job.title, "raw_description": actual_description},
+                    result={"job_id": str(job.id), "status": "COMPLETED", "requirements": reqs}
+                )
+                db.add(bg_job)
+                db.commit()
+        except Exception:
+            pass
+            
         return {"status": "COMPLETED", "job_id": str(job.id), "requirements": reqs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -46,12 +64,63 @@ def parse_job(
 @router.get("/jobs/{job_id}/status")
 def get_job_status(
     job_id: str,
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_role("RECRUITER"))
 ):
+    # 1. First check if it's an active or tracked background job in the queue
     job_status = queue_client.get_status(job_id)
-    if not job_status:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job_status
+    if job_status:
+        return job_status
+        
+    # 2. Fallback: Check if job_id corresponds to a persisted JobRequirement in DB
+    job_req = None
+    if job_id.isdigit():
+        try:
+            job_req = db.get(JobRequirement, int(job_id))
+        except Exception:
+            pass
+
+    if job_req:
+        reqs = []
+        for m in (job_req.mandatory_skills or []):
+            reqs.append({"name": m.get("canonical_skill_name"), "type": "MANDATORY", "weight": 1.0})
+        for p in (job_req.preferred_skills or []):
+            reqs.append({"name": p.get("canonical_skill_name"), "type": "PREFERRED", "weight": 0.5})
+
+        return {
+            "id": str(job_req.id),
+            "job_id": str(job_req.id),
+            "job_type": "JD_PARSING",
+            "status": "COMPLETED",
+            "stage": "COMPLETED",
+            "title": job_req.title,
+            "payload": {
+                "job_id": str(job_req.id),
+                "title": job_req.title,
+                "min_experience_years": job_req.min_experience_years,
+                "job_description": job_req.raw_description,
+            },
+            "result": {
+                "job_id": str(job_req.id),
+                "title": job_req.title,
+                "status": "COMPLETED",
+                "requirements": reqs,
+            },
+            "requirements": reqs,
+            "error": None,
+            "created_at": job_req.created_at.isoformat() if job_req.created_at else None,
+            "updated_at": job_req.created_at.isoformat() if job_req.created_at else None,
+        }
+
+    raise HTTPException(status_code=404, detail="Job not found")
+
+@router.get("/jobs/{job_id}")
+def get_job_by_id(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("RECRUITER"))
+):
+    return get_job_status(job_id=job_id, db=db, current_user=current_user)
 
 @router.post("/jobs/{job_id}/cancel")
 def cancel_job(

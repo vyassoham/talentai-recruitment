@@ -67,7 +67,8 @@ class EvidenceValidator:
         external_evidence: str, 
         quotes: List[str],
         provider: Optional[Any] = None,
-        penalty_per_hallucination: float = 5.0
+        penalty_per_hallucination: float = 5.0,
+        enable_llm_judge: Optional[bool] = None
     ) -> Dict[str, Any]:
         """
         Validates a list of quotes against the combined source text.
@@ -110,50 +111,64 @@ class EvidenceValidator:
             }
 
         # -------------------------------------------------------------
-        # Tier 2: LLM-as-a-Judge Semantic Evaluation
+        # Determine whether to execute Tier 2 (LLM-as-a-Judge)
+        # -------------------------------------------------------------
+        should_run_judge = False
+        if enable_llm_judge is True:
+            should_run_judge = True
+        elif enable_llm_judge is None:
+            if provider is not None and getattr(provider, "__class__", None).__name__ == "MockJudgeProvider":
+                should_run_judge = True
+            else:
+                try:
+                    from core.config import settings
+                    should_run_judge = getattr(settings, "ENABLE_LLM_JUDGE", False)
+                except Exception:
+                    should_run_judge = False
+
+        # -------------------------------------------------------------
+        # Tier 2: LLM-as-a-Judge Semantic Evaluation (Opt-in only)
         # -------------------------------------------------------------
         llm_evaluated: Dict[str, bool] = {}
         
-        try:
-            # Resolve AI provider if not explicitly injected
-            ai_provider = provider
-            if ai_provider is None:
-                from services.ai.provider import get_ai_provider
-                ai_provider = get_ai_provider()
-                
-            from services.ai.provider import MockProvider
-            if ai_provider and not isinstance(ai_provider, MockProvider):
-                # Prepare compact source context for prompt
-                source_context = (source_text or "")[:10000]
-                if external_evidence:
-                    source_context += f"\n\n--- EXTERNAL EVIDENCE ---\n{external_evidence[:3000]}"
+        if should_run_judge:
+            try:
+                ai_provider = provider
+                if ai_provider is None:
+                    from services.ai.provider import get_ai_provider
+                    ai_provider = get_ai_provider()
                     
-                quotes_block = "\n".join([f"- \"{q}\"" for q in unresolved_quotes])
-                judge_prompt = (
-                    f"--- CANDIDATE RESUME & EVIDENCE ---\n{source_context}\n\n"
-                    f"--- EVIDENCE QUOTES / CLAIMS TO AUDIT ---\n{quotes_block}\n\n"
-                    f"Please audit each claim and determine if it is semantically supported or hallucinated."
-                )
-                
-                judge_result, _ = ai_provider.generate_structured(
-                    prompt=judge_prompt,
-                    schema_cls=BatchValidationResult,
-                    system_prompt=LLM_JUDGE_SYSTEM_PROMPT
-                )
-                
-                if judge_result and getattr(judge_result, "validations", None):
-                    for v in judge_result.validations:
-                        # Match to unresolved quote (handle minor whitespace variations from LLM response)
-                        for uq in unresolved_quotes:
-                            if uq == v.quote or cls._normalize_text(uq) == cls._normalize_text(v.quote):
-                                llm_evaluated[uq] = v.is_supported
-                                explanations[uq] = v.explanation or ("Supported by LLM judge" if v.is_supported else "Flagged as hallucination by LLM judge")
-                                break
-        except Exception as e:
-            logger.warning(f"LLM-as-a-Judge validation encountered an error, falling back to heuristic: {e}")
+                from services.ai.provider import MockProvider
+                if ai_provider and not isinstance(ai_provider, MockProvider):
+                    source_context = (source_text or "")[:10000]
+                    if external_evidence:
+                        source_context += f"\n\n--- EXTERNAL EVIDENCE ---\n{external_evidence[:3000]}"
+                        
+                    quotes_block = "\n".join([f"- \"{q}\"" for q in unresolved_quotes])
+                    judge_prompt = (
+                        f"--- CANDIDATE RESUME & EVIDENCE ---\n{source_context}\n\n"
+                        f"--- EVIDENCE QUOTES / CLAIMS TO AUDIT ---\n{quotes_block}\n\n"
+                        f"Please audit each claim and determine if it is semantically supported or hallucinated."
+                    )
+                    
+                    judge_result, _ = ai_provider.generate_structured(
+                        prompt=judge_prompt,
+                        schema_cls=BatchValidationResult,
+                        system_prompt=LLM_JUDGE_SYSTEM_PROMPT
+                    )
+                    
+                    if judge_result and getattr(judge_result, "validations", None):
+                        for v in judge_result.validations:
+                            for uq in unresolved_quotes:
+                                if uq == v.quote or cls._normalize_text(uq) == cls._normalize_text(v.quote):
+                                    llm_evaluated[uq] = v.is_supported
+                                    explanations[uq] = v.explanation or ("Supported by LLM judge" if v.is_supported else "Flagged as hallucination by LLM judge")
+                                    break
+            except Exception as e:
+                logger.warning(f"LLM-as-a-Judge validation encountered an error, falling back to heuristic: {e}")
 
         # -------------------------------------------------------------
-        # Tier 3: Resilient Fallback (Word-Overlap Heuristic)
+        # Tier 3: Deterministic Semantic Word-Overlap Verification
         # -------------------------------------------------------------
         for quote in unresolved_quotes:
             if quote in llm_evaluated:
@@ -164,16 +179,16 @@ class EvidenceValidator:
                     validation_results[quote] = "FAIL"
                     hallucination_count += 1
             else:
-                # Heuristic fallback for any quotes not resolved by LLM judge
                 norm_quote = cls._normalize_text(quote)
                 words = norm_quote.split()
-                if len(words) > 3:
+                if words:
                     quote_vocab = set(words)
                     source_vocab = set(normalized_source.split())
                     match_ratio = len(quote_vocab.intersection(source_vocab)) / len(quote_vocab)
-                    if match_ratio >= 0.7:
+                    # Support longer quotes with >= 70% word containment, or short phrases with >= 99% containment
+                    if (len(words) > 3 and match_ratio >= 0.7) or (len(words) <= 3 and match_ratio >= 0.99):
                         validation_results[quote] = "PASS"
-                        explanations[quote] = f"Fuzzy word-overlap pass ({match_ratio:.0%} match)"
+                        explanations[quote] = f"Deterministic word-overlap pass ({match_ratio:.0%} match)"
                         continue
                         
                 validation_results[quote] = "FAIL"

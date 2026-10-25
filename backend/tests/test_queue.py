@@ -72,3 +72,42 @@ def test_job_cancellation():
     time.sleep(0.5)
     status_after = queue.get_status(job_id)
     assert status_after["status"] == "CANCELLED"
+
+
+def test_queue_restart_recovery():
+    queue = LocalThreadQueue(autostart_worker=False)
+    
+    import uuid
+    from models.all_models import BackgroundJob
+    from core.database import SessionLocal
+    from core.queue import register_task
+    
+    recovered_job_id = f"test-recovery-{uuid.uuid4()}"
+    
+    def my_recovered_task(job_id: str, **kwargs):
+        return {"status": "ok", "recovered": True}
+        
+    register_task("TEST_RECOVERY_JOB", my_recovered_task)
+    
+    with SessionLocal() as db:
+        job = BackgroundJob(
+            id=recovered_job_id,
+            job_type="TEST_RECOVERY_JOB",
+            status="PROCESSING",
+            payload={"param": 123}
+        )
+        db.add(job)
+        db.commit()
+        
+    recovered_count = queue.recover_orphaned_jobs()
+    assert recovered_count >= 1
+    
+    status = queue.get_status(recovered_job_id)
+    assert status["status"] == "QUEUED"
+    
+    queue.start_worker()
+    final_status = wait_for_status(queue, recovered_job_id, ["COMPLETED"], timeout=6.0)
+    queue.stop_worker()
+    
+    assert final_status["status"] == "COMPLETED"
+    assert final_status["result"] == {"status": "ok", "recovered": True}

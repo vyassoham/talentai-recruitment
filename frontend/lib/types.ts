@@ -65,9 +65,16 @@ export interface CandidateResult {
   rerank_score?: number;
   evaluations: EvaluationEvidenceItem[];
   social_links?: Record<string, string>;
-  engineering_quality_score?: number;
   external_evidence?: string;
   best_matching_section?: string;
+  matched_skills?: string[];
+  skills?: { name: string }[];
+  ai_evaluation?: {
+    overall_score?: number;
+    reasoning_summary?: string;
+    key_strengths?: string[];
+    hiring_verdict?: string;
+  };
 }
 
 export interface SearchTelemetry {
@@ -110,15 +117,13 @@ export interface StaleCandidateInfo {
 }
 
 export interface DEIReport {
-  job_id: number;
-  threshold_score: number;
-  total_evaluations: number;
-  adverse_impact_detected: boolean;
-  adverse_impact_ratio: number;
-  disparity_details: {
-    gender?: Record<string, { total: number; passed: number; pass_rate: number }>;
-    race_ethnicity?: Record<string, { total: number; passed: number; pass_rate: number }>;
-  };
+  dei_analytics: Array<{
+    gender: string;
+    race_ethnicity: string;
+    total_applicants: number;
+    passed_ai: number;
+    pass_rate_percentage: number;
+  }>;
 }
 
 export interface AIOperationTelemetry {

@@ -107,3 +107,56 @@ def test_candidate_section_chunking():
     assert "Senior DevOps" in exp_chunk["content_chunk"]
     assert "CloudTech" in exp_chunk["content_chunk"]
 
+def test_retrieval_result_contact_regex_efficiency():
+    import time
+    from models.all_models import CandidateDocument
+    from services.search.retrieval import RetrievalResult
+    from services.search.eligibility import CandidateEligibilityResult
+
+    # Generate 50KB of mock resume text
+    large_body = " Lorem ipsum dolor sit amet, consectetur adipiscing elit." * 1000  # ~57KB
+    raw_cv = "Contact: test.engineer@company.io | Phone: +1-555-234-5678\n" + large_body
+
+    doc = CandidateDocument(
+        id=1,
+        storage_key="resumes/test_cv.pdf",
+        raw_extracted_text=raw_cv
+    )
+    # Case 1: email and phone missing in candidate -> extracted from header swiftly
+    candidate_no_contact = Candidate(
+        id=1,
+        name="Test Engineer",
+        email=None,
+        phone=None,
+        total_experience_years=4.0,
+        documents=[doc],
+        skills=[]
+    )
+    elig = CandidateEligibilityResult(candidate_id=1, eligible=True, requirements=[])
+    res = RetrievalResult(candidate_no_contact, elig)
+
+    start = time.time()
+    data = res.to_dict()
+    elapsed = time.time() - start
+
+    assert data["email"] == "test.engineer@company.io"
+    assert "555-234-5678" in data["phone"]
+    # Must complete in sub-millisecond even with 57KB string
+    assert elapsed < 0.05, f"Regex took too long: {elapsed:.4f}s"
+
+    # Case 2: email and phone already in candidate -> zero regex overhead
+    candidate_with_contact = Candidate(
+        id=2,
+        name="Direct Contact",
+        email="direct@domain.com",
+        phone="+1-555-999-8888",
+        total_experience_years=6.0,
+        documents=[doc],
+        skills=[]
+    )
+    res2 = RetrievalResult(candidate_with_contact, elig)
+    data2 = res2.to_dict()
+    assert data2["email"] == "direct@domain.com"
+    assert data2["phone"] == "+1-555-999-8888"
+
+

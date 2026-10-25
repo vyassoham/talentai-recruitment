@@ -237,18 +237,37 @@ def run_full_enrichment(job_id: str, candidate_id: int):
     Called as a background task after CV ingestion.
     """
     from services.enrichment.github_auditor import run_github_audit
+    import datetime
     
     results = {}
+    
+    # Run the modular enrichers
     results["github"] = run_github_audit(job_id=job_id, candidate_id=candidate_id)
     results["stackoverflow"] = enrich_stackoverflow(job_id=job_id, candidate_id=candidate_id)
     results["scholar"] = enrich_google_scholar(job_id=job_id, candidate_id=candidate_id)
     results["design"] = enrich_design_portfolio(job_id=job_id, candidate_id=candidate_id)
     
-    # Update last_enriched_at
-    import datetime
+    # Aggregate and save composite scores
     with SessionLocal() as db:
         candidate = db.get(Candidate, candidate_id)
         if candidate:
+            # 1. Engineering Quality Score (Max of GitHub or StackOverflow)
+            eng_scores = []
+            
+            # Extract GitHub Score
+            if results["github"].get("status") == "completed" and "audit_score" in results["github"]:
+                eng_scores.append(results["github"]["audit_score"])
+                
+            # Extract StackOverflow Score
+            if results["stackoverflow"].get("status") == "completed" and "score" in results["stackoverflow"]:
+                eng_scores.append(results["stackoverflow"]["score"])
+                
+            if eng_scores:
+                # We use MAX because a candidate might be extremely active on SO but not GH (or vice versa)
+                candidate.engineering_quality_score = max(eng_scores)
+                logger.info(f"Set composite Engineering Quality Score to {candidate.engineering_quality_score} for candidate {candidate_id}")
+            
+            # Mark enrichment as complete
             candidate.last_enriched_at = datetime.datetime.now(datetime.timezone.utc)
             db.commit()
     

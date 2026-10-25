@@ -46,22 +46,23 @@ def get_dei_analytics(
         
     pass_stats = pass_query.group_by(CandidateDemographics.gender, CandidateDemographics.race_ethnicity).all()
     
-    # 3. Compile the JSON report
+    # 3. Compile the JSON report using safe tuple keys (prevents crash on categories with underscores)
     total_map = {}
     for gender, race, count in base_stats:
-        key = f"{gender}_{race}"
-        total_map[key] = count
+        g = gender if gender is not None else "Unknown"
+        r = race if race is not None else "Unknown"
+        total_map[(g, r)] = count
         
     pass_map = {}
     for gender, race, count in pass_stats:
-        key = f"{gender}_{race}"
-        pass_map[key] = count
+        g = gender if gender is not None else "Unknown"
+        r = race if race is not None else "Unknown"
+        pass_map[(g, r)] = count
         
     report = []
-    for key, total in total_map.items():
-        passed = pass_map.get(key, 0)
+    for (gender, race), total in total_map.items():
+        passed = pass_map.get((gender, race), 0)
         pass_rate = (passed / total) * 100 if total > 0 else 0
-        gender, race = key.split("_")
         report.append({
             "gender": gender,
             "race_ethnicity": race,

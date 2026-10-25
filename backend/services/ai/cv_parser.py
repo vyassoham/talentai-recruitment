@@ -7,7 +7,10 @@ class CVParser:
         self.system_prompt = """
         You are an expert recruitment AI. Extract candidate information from the provided text into the strict JSON schema.
         Rules:
-        1. FIRST check if the provided text actually looks like a Resume/CV. If it is a completely unrelated document (e.g. recipe, raw image noise, code snippet), set `is_valid_resume` to false and provide a `validation_reason`.
+        1. FIRST check if the provided text actually looks like a Resume/CV.
+           - A valid Resume/CV MUST belong to an identifiable candidate with a real person's name.
+           - If the candidate name is missing, unreadable, or a generic placeholder (e.g. 'Resume', 'Curriculum Vitae', 'Unknown', 'N/A', 'Candidate'), set `is_valid_resume` to false and provide a `validation_reason`.
+           - If it is a completely unrelated document (e.g. recipe, invoice, raw OCR noise, terms of service, code snippet), set `is_valid_resume` to false and provide a `validation_reason`.
         2. Extract explicit facts only. Do not hallucinate.
         3. Format dates as YYYY-MM where possible, or 'present' if current.
         4. For 'evidence' in skills, provide the exact quote from the CV mentioning it.

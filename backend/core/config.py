@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
 
     # Database
-    DATABASE_URL: str = "postgresql://recruit_admin:recruit_password@localhost:5433/recruit_db"
+    DATABASE_URL: str = "postgresql://recruit_admin@localhost:5433/recruit_db"
     SUPABASE_URL: Optional[str] = None
     SUPABASE_KEY: Optional[str] = None
     DB_POOL_SIZE: int = 10
@@ -59,8 +59,10 @@ class Settings(BaseSettings):
     RETRIEVAL_WEIGHT_EXPERIENCE: float = 0.2
     RETRIEVAL_WEIGHT_PREFERRED: float = 0.1
     RETRIEVAL_TOP_K: int = 50
-    RERANK_TOP_N: int = 5
-    RERANK_CONCURRENCY: int = 5
+    RERANK_TOP_N: int = 0  # Sub-second fast search default; deep LLM on-demand or configurable
+    RERANK_CONCURRENCY: int = 3
+    FAST_SEARCH_DEFAULT: bool = True
+    ENABLE_LLM_JUDGE: bool = False # Fast deterministic quote validation during reranking to eliminate dual sequential LLMs and 429 quota exhaustion
 
     # Storage & Uploads
     STORAGE_BACKEND: str = "supabase" # "supabase", "local", "s3", or "gcs"

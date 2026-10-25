@@ -9,12 +9,40 @@ import {
   RequirementItem
 } from "./types";
 
-const BASE_URL = "https://talentai-recruitment.onrender.com/api/v1";
+/**
+ * Resolves the backend API base URL.
+ * Priority:
+ * 1. Explicitly configured NEXT_PUBLIC_API_URL environment variable.
+ * 2. Client-side browser hostname detection: if running on localhost or 127.0.0.1,
+ *    default to local backend (http://localhost:8000/api/v1) to prevent 50s Render cold-start lag.
+ * 3. Default production fallback (https://talentai-recruitment.onrender.com/api/v1).
+ */
+export function getApiBaseUrl(): string {
+  if (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) {
+    const envUrl = process.env.NEXT_PUBLIC_API_URL.trim();
+    if (envUrl) {
+      return envUrl.replace(/\/+$/, "");
+    }
+  }
+
+  if (typeof window !== "undefined" && window.location) {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0") {
+      return "http://127.0.0.1:8000/api/v1";
+    }
+  }
+
+  return "https://talentai-recruitment.onrender.com/api/v1";
+}
+
+export const BASE_URL = getApiBaseUrl();
 
 class ApiClient {
+  private baseUrl: string;
   private token: string | null = null;
 
-  constructor() {
+  constructor(baseUrl?: string) {
+    this.baseUrl = baseUrl ? baseUrl.replace(/\/+$/, "") : getApiBaseUrl();
     if (typeof window !== "undefined") {
       this.token = localStorage.getItem("talentai_jwt_token");
       // Silently auto-authenticate if not present
@@ -22,6 +50,14 @@ class ApiClient {
         this.login("admin@recruit.ai", "admin_password").catch(() => {});
       }
     }
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
+  setBaseUrl(url: string) {
+    this.baseUrl = url.replace(/\/+$/, "");
   }
 
   setToken(token: string | null) {
@@ -55,8 +91,17 @@ class ApiClient {
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
+    
+    // Add API key for protected endpoints
+    if (!headers["X-API-Key"]) {
+      headers["X-API-Key"] = "dev-secret-api-key";
+    }
 
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const cleanBase = this.baseUrl.replace(/\/+$/, "");
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    const url = `${cleanBase}${cleanPath}`;
+
+    const response = await fetch(url, {
       ...options,
       headers,
     });
@@ -150,10 +195,29 @@ class ApiClient {
 
   // ==================== Candidate Search & Feedback ====================
 
-  async searchCandidates(jobId: string, topK: number = 200, query?: string): Promise<SearchResponse> {
+  async searchCandidates(
+    jobId: string, 
+    topK: number = 200, 
+    query?: string,
+    fastMode?: boolean,
+    rerankTopN?: number
+  ): Promise<SearchResponse> {
     return this.request("/candidates/search", {
       method: "POST",
-      body: JSON.stringify({ job_id: jobId, top_k: topK, query: query || undefined }),
+      body: JSON.stringify({ 
+        job_id: jobId, 
+        top_k: topK, 
+        query: query || undefined,
+        fast_mode: fastMode !== undefined ? fastMode : true,
+        rerank_top_n: rerankTopN !== undefined ? rerankTopN : undefined
+      }),
+    });
+  }
+
+  async evaluateCandidate(candidateId: number, jobId: string = "1") {
+    return this.request(`/candidates/${candidateId}/evaluate`, {
+      method: "POST",
+      body: JSON.stringify({ job_id: jobId }),
     });
   }
 
@@ -213,6 +277,10 @@ class ApiClient {
 
   async getAICostAnalytics(): Promise<AICostReport> {
     return this.request("/analytics/ai-costs");
+  }
+
+  async getCandidatesCount(): Promise<{ total_amount: number }> {
+    return this.request("/candidates/count");
   }
 }
 

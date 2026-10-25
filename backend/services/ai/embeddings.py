@@ -110,8 +110,15 @@ class EmbeddingsService:
         embed_text = "\n".join(parts)
         
         try:
-            vector, usage = ai_provider.generate_embeddings(embed_text)
-            candidate.embedding = vector
+            emb_res = ai_provider.generate_embeddings(embed_text)
+            if isinstance(emb_res, tuple):
+                vector = emb_res[0]
+                usage = emb_res[1] if len(emb_res) > 1 else {}
+            else:
+                vector = emb_res
+                usage = {}
+
+            candidate.embedding = list(vector) if isinstance(vector, (list, tuple)) else vector
             
             # Audit telemetry
             registry = AIRegistry(
@@ -142,16 +149,26 @@ class EmbeddingsService:
                     continue
                     
                 try:
-                    sec_vector, _ = ai_provider.generate_embeddings(chunk_text)
+                    sec_res = ai_provider.generate_embeddings(chunk_text)
+                    if isinstance(sec_res, tuple):
+                        sec_vector = sec_res[0]
+                    else:
+                        sec_vector = sec_res
+
                     if sec_vector:
                         sec_embedding = CandidateSectionEmbedding(
                             candidate_id=candidate.id,
                             section_type=sec["section_type"],
                             section_title=sec["section_title"],
                             content_chunk=chunk_text,
-                            embedding=sec_vector
+                            embedding=list(sec_vector) if isinstance(sec_vector, (list, tuple)) else sec_vector
                         )
                         db.add(sec_embedding)
+                        try:
+                            from services.search.retrieval import HybridRetrievalEngine
+                            HybridRetrievalEngine.notify_section_embeddings_created()
+                        except Exception:
+                            pass
                 except Exception as chunk_err:
                     logger.debug(f"Failed generating section embedding for {sec['section_type']}: {chunk_err}")
         except Exception as sec_err:

@@ -50,10 +50,11 @@ def test_ai_reranker_success():
     assert result[0]["ai_evaluation"]["overall_score"] == 0.9
     assert result[0]["composite_score"] == (0.8 * 0.3) + (0.9 * 0.7)
     
-    # Candidate 2 not evaluated (top_n=1 fallback)
+    # Candidate 2 not evaluated by LLM (top_n=1 graceful fallback)
     assert result[1]["candidate_id"] == 2
-    assert result[1]["ai_evaluation"] is None
-    assert result[1]["composite_score"] == (0.5 * 0.3)
+    assert result[1]["ai_evaluation"]["overall_score"] == 0.5
+    assert result[1]["evaluations"] == []
+    assert result[1]["composite_score"] == 0.5
     
     # DB calls
     assert mock_db.add.call_count == 2 # 1 Evidence + 1 Registry

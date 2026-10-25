@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
-from models.all_models import IngestionJob, CandidateDocument
+from models.all_models import IngestionJob, CandidateDocument, Candidate, BackgroundJob
 from core.database import SessionLocal
-from core.storage import LocalStorage
+from core.storage import get_storage_provider
 from services.documents.extractor import DocumentExtractor
 from services.documents.normalizer import TextNormalizer
 from services.ai.cv_parser import CVParser
@@ -17,17 +17,33 @@ class IngestionPipeline:
         try:
             job = db.get(IngestionJob, self.job_id)
             if not job:
-                return
+                # Fallback: check if self.job_id matches a BackgroundJob id
+                bg_job = db.get(BackgroundJob, self.job_id)
+                if bg_job and bg_job.payload and bg_job.payload.get("document_id"):
+                    doc_id = bg_job.payload.get("document_id")
+                    job = IngestionJob(
+                        id=self.job_id,
+                        document_id=doc_id,
+                        stage="UPLOADED",
+                        status="IN_PROGRESS"
+                    )
+                    db.add(job)
+                    db.commit()
+                else:
+                    return {"status": "FAILED", "error": f"No IngestionJob found for id {self.job_id}"}
                 
             job.status = "IN_PROGRESS"
             db.commit()
             
             doc = db.get(CandidateDocument, job.document_id)
+            if not doc:
+                self._transition(db, job, None, "FAILED", error=f"CandidateDocument {job.document_id} not found", status="FAILED")
+                return {"status": "FAILED", "error": f"CandidateDocument {job.document_id} not found"}
             
             # Resume from last failed stage or start from EXTRACTING
             if job.stage in ["UPLOADED", "VALIDATING", "EXTRACTING"]:
                 self._transition(db, job, doc, "EXTRACTING")
-                extractor = DocumentExtractor(LocalStorage())
+                extractor = DocumentExtractor(get_storage_provider())
                 raw_text = extractor.extract_text(doc.storage_key)
                 doc.raw_extracted_text = raw_text
                 doc.extraction_status = "COMPLETED"
@@ -38,6 +54,15 @@ class IngestionPipeline:
                 normalized = TextNormalizer.normalize(doc.raw_extracted_text)
                 doc.normalized_text = normalized
                 db.commit()
+
+                # Fast deterministic pre-check on normalized text for junk OCR / empty text before LLM call
+                from services.documents.validator import DocumentValidator
+                is_valid_text, text_err = DocumentValidator.validate_extracted_text(doc.normalized_text)
+                if not is_valid_text:
+                    self._transition(db, job, doc, "FAILED", error=f"Invalid CV content: {text_err}", status="FAILED")
+                    doc.extraction_status = "FAILED"
+                    db.commit()
+                    return {"status": "FAILED", "error": f"Invalid CV content: {text_err}"}
                 
             if job.stage in ["NORMALIZING", "PARSING"]:
                 self._transition(db, job, doc, "PARSING")
@@ -47,11 +72,9 @@ class IngestionPipeline:
                 if not structured.is_valid_resume:
                     reason = structured.validation_reason or "Document does not appear to be a valid Resume/CV"
                     self._transition(db, job, doc, "FAILED", error=reason, status="FAILED")
-                    db.delete(doc) # Optionally delete the invalid document to save space
+                    doc.parsing_status = "FAILED"
                     db.commit()
-                    return
-                
-                # Keep in memory for next step
+                    return {"status": "FAILED", "error": reason}
                 
             if job.stage in ["PARSING", "NORMALIZING_SKILLS", "CALCULATING_EXPERIENCE", "DEDUPLICATING"]:
                 # Grouped Candidate DB writes
@@ -81,6 +104,13 @@ class IngestionPipeline:
                 
             # Done
             self._transition(db, job, doc, "COMPLETED", status="COMPLETED")
+            cand = db.get(Candidate, doc.candidate_id) if doc.candidate_id else None
+            return {
+                "status": "COMPLETED",
+                "candidate_id": doc.candidate_id,
+                "candidate_name": cand.name if cand else None,
+                "document_id": doc.id
+            }
             
         except Exception as e:
             db.rollback()
@@ -90,10 +120,14 @@ class IngestionPipeline:
                 job.error_message = str(e)
                 job.error_type = type(e).__name__
                 db.commit()
+            return {"status": "FAILED", "error": str(e)}
         finally:
             db.close()
 
-    def _transition(self, db, job, doc, new_stage, status="IN_PROGRESS"):
-        job.stage = new_stage
-        job.status = status
-        db.commit()
+    def _transition(self, db, job, doc, new_stage, status="IN_PROGRESS", error=None):
+        if job:
+            job.stage = new_stage
+            job.status = status
+            if error:
+                job.error_message = str(error)
+            db.commit()

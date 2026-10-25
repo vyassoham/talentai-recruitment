@@ -31,12 +31,6 @@ export const ResumeUploader: React.FC = () => {
     const fileList = Array.from(newFiles);
     
     for (const file of fileList) {
-      const ext = file.name.split(".").pop()?.toLowerCase();
-      if (ext !== "pdf" && ext !== "docx") {
-        alert(`Unsupported file format .${ext}. Only PDF and DOCX files are permitted.`);
-        continue;
-      }
-
       if (file.size > 10 * 1024 * 1024) {
         alert(`File ${file.name} exceeds the 10MB size limit.`);
         continue;
@@ -161,7 +155,6 @@ export const ResumeUploader: React.FC = () => {
               if (e.target.files) handleFiles(e.target.files);
             }}
             multiple
-            accept=".pdf,.docx"
             className="hidden"
           />
 

@@ -58,9 +58,11 @@ async def upload_cv(
     db.add(doc)
     db.flush()
     
-    job_id = str(uuid.uuid4())
+    from core.queue import queue_client
+    
+    bg_job_id = str(uuid.uuid4())
     job = IngestionJob(
-        id=job_id,
+        id=bg_job_id,
         document_id=doc.id,
         stage="UPLOADED",
         status="QUEUED"
@@ -68,21 +70,20 @@ async def upload_cv(
     db.add(job)
     db.commit()
     
-    from core.queue import queue_client
-    
-    def background_cv_ingestion(job_id: str):
+    def background_cv_ingestion(job_id: str, **kwargs):
         pipeline = IngestionPipeline(job_id)
         return pipeline.run()
         
-    bg_job_id = queue_client.enqueue(
+    queue_client.enqueue(
         job_type="CV_INGESTION",
-        payload={"filename": file.filename, "document_id": doc.id},
-        task_func=background_cv_ingestion
+        payload={"filename": file.filename, "document_id": doc.id, "ingestion_job_id": bg_job_id},
+        task_func=background_cv_ingestion,
+        job_id=bg_job_id
     )
     
     return {
         "job_id": bg_job_id,
-        "ingestion_id": job_id,
+        "ingestion_id": bg_job_id,
         "document_id": doc.id,
         "status": "ACCEPTED"
     }
@@ -95,8 +96,28 @@ def get_upload_status(
     from core.queue import queue_client
     job_status = queue_client.get_status(bg_job_id)
     if not job_status:
+        from core.database import SessionLocal
+        with SessionLocal() as db:
+            i_job = db.get(IngestionJob, bg_job_id)
+            if i_job:
+                return {
+                    "id": i_job.id,
+                    "job_type": "CV_INGESTION",
+                    "status": i_job.status,
+                    "stage": i_job.stage,
+                    "candidate_id": None,
+                    "candidate_name": None,
+                    "error_message": i_job.error_message
+                }
         raise HTTPException(status_code=404, detail="Job not found")
-    return job_status
+
+    res = job_status.get("result") or {}
+    return {
+        **job_status,
+        "candidate_id": res.get("candidate_id"),
+        "candidate_name": res.get("candidate_name"),
+        "error_message": job_status.get("error") or res.get("error")
+    }
 
 @router.delete("/candidates/{candidate_id}")
 def delete_candidate(

@@ -66,6 +66,51 @@ def test_dei_analytics_empty_demographics():
 
     app.dependency_overrides.clear()
 
+def test_dei_analytics_with_underscores():
+    mock_db = MagicMock()
+
+    # Demographic data containing multiple underscores and None
+    mock_base_stats = [
+        ("Non_Binary", "Asian_Pacific_Islander", 10),
+        ("Female", "Two_or_More_Races", 20),
+        (None, "Hispanic_Latino", 5),
+    ]
+
+    mock_pass_stats = [
+        ("Non_Binary", "Asian_Pacific_Islander", 6),
+        ("Female", "Two_or_More_Races", 15),
+        (None, "Hispanic_Latino", 3),
+    ]
+
+    mock_db.query().group_by().all.return_value = mock_base_stats
+    mock_db.query().join().filter().group_by().all.return_value = mock_pass_stats
+
+    mock_user = User(id=1, email="recruiter@test.com", role=UserRole.RECRUITER.value, is_active=True)
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    response = client.get("/api/v1/analytics/dei")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "dei_analytics" in data
+    report = data["dei_analytics"]
+    assert len(report) == 3
+
+    non_binary_entry = next(r for r in report if r["gender"] == "Non_Binary")
+    assert non_binary_entry["race_ethnicity"] == "Asian_Pacific_Islander"
+    assert non_binary_entry["total_applicants"] == 10
+    assert non_binary_entry["passed_ai"] == 6
+    assert non_binary_entry["pass_rate_percentage"] == 60.0
+
+    none_entry = next(r for r in report if r["gender"] == "Unknown")
+    assert none_entry["race_ethnicity"] == "Hispanic_Latino"
+    assert none_entry["total_applicants"] == 5
+    assert none_entry["passed_ai"] == 3
+
+    app.dependency_overrides.clear()
+
 def test_ai_cost_analytics_aggregation():
     mock_db = MagicMock()
     

@@ -1,12 +1,19 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  DollarSign,
-  RefreshCw
-} from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { api } from "../lib/api";
 import { AICostReport } from "../lib/types";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from "recharts";
 
 export const AICostTelemetryTab: React.FC = () => {
   const [report, setReport] = useState<AICostReport | null>(null);
@@ -17,7 +24,9 @@ export const AICostTelemetryTab: React.FC = () => {
     try {
       const data = await api.getAICostAnalytics();
       setReport(data);
-    } catch (err) { setReport(null); } finally {
+    } catch (err) {
+      setReport(null);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -26,12 +35,19 @@ export const AICostTelemetryTab: React.FC = () => {
     fetchTelemetry();
   }, []);
 
+  const chartData = report?.operations.map(op => ({
+    name: op.operation,
+    Cost: parseFloat(op.estimated_cost_usd.toFixed(4)),
+    Latency: parseFloat(op.avg_latency_sec.toString()),
+    Tokens: op.total_tokens
+  })) || [];
+
   return (
     <div className="space-y-6">
       
       {/* Header Container */}
-      <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg p-6 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+      <div className="bg-[#121212] border border-zinc-800 shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg p-6 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-4">
           <div>
             <h2 className="text-base font-semibold text-zinc-100">
               AI Token Telemetry & Estimated Spend
@@ -52,50 +68,95 @@ export const AICostTelemetryTab: React.FC = () => {
         </div>
 
         {/* 4 Minimal KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-          <div className="p-4 bg-transparent rounded border border-white/10 space-y-1">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+          <div className="p-4 bg-zinc-900/50 rounded-md border border-zinc-800/50 space-y-1">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">Estimated Cost</span>
             <span className="text-xl font-semibold font-mono text-emerald-400 block">
               ${report ? report.total_estimated_cost_usd.toFixed(4) : "0.0000"}
             </span>
           </div>
 
-          <div className="p-4 bg-transparent rounded border border-white/10 space-y-1">
+          <div className="p-4 bg-zinc-900/50 rounded-md border border-zinc-800/50 space-y-1">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">AI Invocations</span>
             <span className="text-xl font-semibold font-mono text-zinc-100 block">
               {report ? report.total_ai_transactions.toLocaleString() : "0"}
             </span>
           </div>
 
-          <div className="p-4 bg-transparent rounded border border-white/10 space-y-1">
+          <div className="p-4 bg-zinc-900/50 rounded-md border border-zinc-800/50 space-y-1">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">Tokens Consumed</span>
             <span className="text-xl font-semibold font-mono text-zinc-100 block">
               {report ? report.total_tokens_consumed.toLocaleString() : "0"}
             </span>
           </div>
 
-          <div className="p-4 bg-transparent rounded border border-white/10 space-y-1">
+          <div className="p-4 bg-zinc-900/50 rounded-md border border-zinc-800/50 space-y-1">
             <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">Prompt / Output Ratio</span>
             <span className="text-xl font-semibold font-mono text-zinc-300 block">
               {report && report.total_completion_tokens > 0
                 ? `${(report.total_prompt_tokens / report.total_completion_tokens).toFixed(1)}:1`
-                : "4.3:1"}
+                : "0:0"}
             </span>
           </div>
         </div>
+        
+        {/* Charts Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
+          
+          {/* Cost Chart */}
+          <div className="bg-zinc-900/50 p-4 rounded-md border border-zinc-800/50 flex flex-col">
+            <h3 className="text-sm font-semibold mb-4 text-center text-zinc-300">Cost Breakdown (USD)</h3>
+            {chartData.length > 0 ? (
+              <div className="h-64 flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                    <XAxis dataKey="name" stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', color: '#fff' }} cursor={{fill: '#27272a', opacity: 0.4}} />
+                    <Bar dataKey="Cost" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex h-64 justify-center items-center text-zinc-600 text-sm">No Telemetry Data</div>
+            )}
+          </div>
+
+          {/* Latency Chart */}
+          <div className="bg-zinc-900/50 p-4 rounded-md border border-zinc-800/50 flex flex-col">
+            <h3 className="text-sm font-semibold mb-4 text-center text-zinc-300">Average Latency (Seconds)</h3>
+            {chartData.length > 0 ? (
+              <div className="h-64 flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                    <XAxis dataKey="name" stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', color: '#fff' }} cursor={{fill: '#27272a', opacity: 0.4}} />
+                    <Bar dataKey="Latency" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex h-64 justify-center items-center text-zinc-600 text-sm">No Telemetry Data</div>
+            )}
+          </div>
+        </div>
+
       </div>
 
       {/* Operation Breakdown Table */}
-      <div className="bg-white/5 border border-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg overflow-hidden">
-        <div className="p-4 border-b border-white/10">
+      <div className="bg-[#121212] border border-zinc-800 shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-lg overflow-hidden">
+        <div className="p-4 border-b border-zinc-800">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
-            Operation Telemetry Breakdown
+            Operation Telemetry Details
           </h3>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-white/10 text-zinc-400 font-medium uppercase text-[10px] bg-transparent/40">
+            <thead className="border-b border-zinc-800 text-zinc-400 font-medium uppercase text-[10px] bg-zinc-900/50">
               <tr>
                 <th className="py-2.5 px-4">Operation</th>
                 <th className="py-2.5 px-4 text-right">Transactions</th>

@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from main import app
 from core.database import get_db
-from core.auth import get_current_user
+from core.auth import get_current_user, verify_api_key
 from models.all_models import User, UserRole, Candidate
 
 client = TestClient(app)
@@ -12,6 +12,7 @@ client = TestClient(app)
 def auth_recruiter():
     mock_user = User(id=1, email="recruiter@test.com", role=UserRole.RECRUITER.value, is_active=True)
     app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[verify_api_key] = lambda: "dev-secret-api-key"
     yield mock_user
     app.dependency_overrides.clear()
 

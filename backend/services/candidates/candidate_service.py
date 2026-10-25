@@ -23,6 +23,14 @@ class CandidateService:
         if not document:
             raise ValueError("Document not found")
             
+        # Name validation guard before saving candidate
+        from services.documents.validator import DocumentValidator
+        is_name_valid, name_err = DocumentValidator.validate_candidate_name(structured_data.name)
+        if not is_name_valid:
+            raise ValueError(f"Cannot save candidate without a valid name: {name_err}")
+
+        cleaned_name = DocumentValidator.clean_candidate_name(structured_data.name)
+
         # 1. Deduplication Check
         candidate = DeduplicationService.find_potential_candidate(
             self.db, email=structured_data.email, phone=structured_data.phone
@@ -30,7 +38,7 @@ class CandidateService:
         
         if not candidate:
             candidate = Candidate(
-                name=structured_data.name,
+                name=cleaned_name,
                 email=structured_data.email,
                 phone=structured_data.phone,
                 location=structured_data.location,
@@ -40,9 +48,11 @@ class CandidateService:
             self.db.add(candidate)
             self.db.flush() # get ID
         else:
+            if cleaned_name and not candidate.name:
+                candidate.name = cleaned_name
             if structured_data.social_links:
                 candidate.social_links = structured_data.social_links
-                self.db.flush()
+            self.db.flush()
                 
         # Link document
         document.candidate_id = candidate.id

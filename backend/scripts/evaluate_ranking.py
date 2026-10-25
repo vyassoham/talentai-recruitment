@@ -42,12 +42,13 @@ def recall_at_k(predicted_relevance: List[float], true_relevance: List[float], k
     return retrieved_relevant / total_relevant
 
 def setup_test_db(db: Session, dataset: dict):
-    from models.all_models import EvaluationEvidence, RecruiterFeedback
+    from models.all_models import EvaluationEvidence, RecruiterFeedback, IngestionJob
     # Clear DB in proper foreign key order
     db.query(EvaluationEvidence).delete()
     db.query(RecruiterFeedback).delete()
     db.query(JobRequirement).delete()
     db.query(CandidateSkill).delete()
+    db.query(IngestionJob).delete()
     db.query(CandidateDocument).delete()
     db.query(Candidate).delete()
     db.query(Ontology).delete()

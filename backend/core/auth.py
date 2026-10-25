@@ -3,8 +3,8 @@ import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, HTTPException, status, Security
+from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from sqlalchemy.orm import Session
 from core.database import get_db
 from models.all_models import User
@@ -71,3 +71,19 @@ def require_role(required_role: str):
             )
         return current_user
     return role_checker
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+def verify_api_key(api_key: Optional[str] = Security(api_key_header)) -> str:
+    """
+    Validates X-API-Key header against SECRET_API_KEY environment variable.
+    Protects credit-draining endpoints from unauthenticated access.
+    """
+    expected_key = os.getenv("SECRET_API_KEY", "dev-secret-api-key")
+    if not api_key or api_key != expected_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API Key. Provide a valid 'X-API-Key' header.",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+    return api_key

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, JSON, Boolean
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, JSON, Boolean, Index
 from sqlalchemy.orm import relationship
 from pgvector.sqlalchemy import Vector
 from core.database import Base
@@ -63,6 +63,16 @@ class Candidate(Base):
     demographics = relationship("CandidateDemographics", back_populates="candidate", uselist=False, cascade="all, delete-orphan")
     section_embeddings = relationship("CandidateSectionEmbedding", back_populates="candidate", cascade="all, delete-orphan")
 
+    __table_args__ = (
+        Index(
+            "ix_candidates_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"}
+        ),
+    )
+
 class CandidateDemographics(Base):
     __tablename__ = "candidate_demographics"
     id = Column(Integer, primary_key=True, index=True)
@@ -96,6 +106,16 @@ class CandidateSectionEmbedding(Base):
     created_at = Column(DateTime, default=_utcnow)
 
     candidate = relationship("Candidate", back_populates="section_embeddings")
+
+    __table_args__ = (
+        Index(
+            "ix_candidate_section_embeddings_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"}
+        ),
+    )
 
 
 
