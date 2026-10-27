@@ -1,7 +1,12 @@
-from core.database import SessionLocal
-from backend.api.routes_search import SearchRequest, search_candidates
-from models.all_models import JobRequirement
+import sys
+import os
 import asyncio
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "backend"))
+
+from core.database import SessionLocal
+from api.routes_search import SearchRequest, search_candidates
+from models.all_models import JobRequirement
 
 async def test_search():
     db = SessionLocal()
