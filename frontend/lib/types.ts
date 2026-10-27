@@ -69,6 +69,10 @@ export interface CandidateResult {
   best_matching_section?: string;
   matched_skills?: string[];
   skills?: { name: string }[];
+  education?: string[];
+  work_history?: string[];
+  summary?: string;
+  raw_text?: string;
   ai_evaluation?: {
     overall_score?: number;
     reasoning_summary?: string;

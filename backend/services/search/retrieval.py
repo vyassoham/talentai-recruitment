@@ -17,6 +17,89 @@ W_SEMANTIC = settings.RETRIEVAL_WEIGHT_SEMANTIC
 W_EXPERIENCE = settings.RETRIEVAL_WEIGHT_EXPERIENCE
 W_PREFERRED = settings.RETRIEVAL_WEIGHT_PREFERRED
 
+SKILL_ALIASES = {
+    "apache spark": ["spark", "apache spark", "pyspark"],
+    "spark": ["spark", "apache spark", "pyspark"],
+    "fastapi": ["fastapi", "fast-api", "fast api"],
+    "postgresql": ["postgresql", "postgres", "psql"],
+    "postgres": ["postgresql", "postgres", "psql"],
+    "bigquery": ["bigquery", "big query", "gcp bigquery"],
+    "snowflake": ["snowflake"],
+    "docker": ["docker", "containerization", "docker-compose"],
+    "kubernetes": ["kubernetes", "k8s"],
+    "react": ["react", "react.js", "reactjs"],
+    "next.js": ["next.js", "nextjs", "next"],
+    "node.js": ["node.js", "nodejs", "node"],
+    "vue": ["vue", "vue.js", "vuejs"],
+    "angular": ["angular", "angular.js", "angularjs"],
+    "aws": ["aws", "amazon web services"],
+    "gcp": ["gcp", "google cloud", "google cloud platform"],
+    "azure": ["azure", "microsoft azure"],
+    "spring boot": ["spring boot", "spring", "springboot"],
+    "rest api": ["rest api", "rest", "restful", "restful api"],
+    "ci/cd": ["ci/cd", "ci cd", "cicd", "continuous integration"],
+    "devops": ["devops", "site reliability engineering", "sre"],
+    "machine learning": ["machine learning", "ml"],
+    "deep learning": ["deep learning", "dl"],
+    "nlp": ["nlp", "natural language processing"],
+    "llm": ["llm", "large language models", "genai", "generative ai"],
+    "pgvector": ["pgvector", "vector database", "embeddings"],
+    "distributed systems": ["distributed systems", "distributed computing"],
+}
+
+def candidate_has_skill(req_name: Optional[str], req_id: Optional[int], c_skill_ids: set, c_skill_names: set, cand_title: str) -> bool:
+    if req_id and req_id in c_skill_ids:
+        return True
+    if not req_name:
+        return False
+    clean = req_name.strip().lower()
+    variants = SKILL_ALIASES.get(clean, [clean])
+    for v in variants:
+        if v in c_skill_names:
+            return True
+        if cand_title and re.search(r'\b' + re.escape(v) + r'\b', cand_title):
+            return True
+    return False
+
+def extract_candidate_sections(text: Optional[str]) -> Dict[str, Any]:
+    if not text:
+        return {'education': [], 'experience': [], 'summary': ''}
+        
+    lines = [l.strip() for l in text.split('\n') if l.strip()]
+    
+    edu_keywords = ['b.tech', 'm.tech', 'b.e.', 'm.e.', 'bca', 'mca', 'b.sc', 'm.sc', 'mba', 'bachelor', 'master', 'degree', 'diploma', 'university', 'college', 'institute', 'higher secondary', 'cbse', 'icse', 'certified', 'certification', 'education']
+    education = []
+    for line in lines:
+        lower = line.lower()
+        if any(kw in lower for kw in edu_keywords) and 8 <= len(line) <= 150 and not any(kw in lower for kw in ['years of experience', 'years exp']):
+            if line not in education:
+                education.append(line)
+        if len(education) >= 5:
+            break
+            
+    exp_bullets = []
+    for line in lines[3:]:
+        if re.match(r'^(?:[*•▪·\-\s]+|(?:Lead|Developed|Designed|Managed|Built|Engineered|Implemented|Architected|Delivered|Automated|Created))\b', line, re.IGNORECASE):
+            clean = re.sub(r'^[^\w]+', '', line).strip()
+            if 25 <= len(clean) <= 250 and clean not in exp_bullets:
+                exp_bullets.append(clean)
+        elif len(line) > 55 and '@' not in line and not re.search(r'\d{7,}', line) and line not in exp_bullets and len(line) <= 250:
+            exp_bullets.append(line)
+        if len(exp_bullets) >= 8:
+            break
+            
+    summary = ''
+    for line in lines[1:12]:
+        if len(line) > 40 and '@' not in line and not re.search(r'\d{6,}', line):
+            summary = line
+            break
+            
+    return {
+        'education': education,
+        'experience': exp_bullets,
+        'summary': summary
+    }
+
 class RetrievalResult:
     def __init__(self, candidate: Candidate, eligibility: CandidateEligibilityResult):
         self.candidate = candidate
@@ -26,17 +109,22 @@ class RetrievalResult:
         self.experience_signal = 0.0
         self.preferred_skill_signal = 0.0
         self.best_matching_section: Optional[str] = None
+        self.mandatory_count = 0
+        self.mandatory_matched_count = 0
         
         self.matched_skills = []
         self.missing_preferred_skills = []
         
     @property
     def retrieval_score(self) -> float:
+        # Critical Gate: If mandatory skills were specified and candidate matched 0 of them, score is strictly 0.0
+        if self.mandatory_count > 0 and self.mandatory_matched_count == 0:
+            return 0.0
         return (
-            (self.skill_match_score * W_SKILL) +
-            (self.semantic_similarity * W_SEMANTIC) +
-            (self.experience_signal * W_EXPERIENCE) +
-            (self.preferred_skill_signal * W_PREFERRED)
+            (self.skill_match_score * 0.50) +
+            (self.semantic_similarity * 0.20) +
+            (self.experience_signal * 0.15) +
+            (self.preferred_skill_signal * 0.15)
         )
         
     def to_dict(self):
@@ -45,10 +133,17 @@ class RetrievalResult:
         email = self.candidate.email
         phone = self.candidate.phone
         
+        sections = {'education': [], 'experience': [], 'summary': ''}
+        raw_text_snippet = None
+
         if doc:
+            raw_text = doc.raw_extracted_text or ""
+            raw_text_snippet = raw_text[:4000] if raw_text else None
+            sections = extract_candidate_sections(raw_text)
+
             # Fallback regex extraction only if missing in DB (bounded to first 2500 chars to avoid CPU spikes on 50KB strings)
-            if (not email or not phone) and doc.raw_extracted_text:
-                header_text = doc.raw_extracted_text[:2500]
+            if (not email or not phone) and raw_text:
+                header_text = raw_text[:2500]
                 if not email:
                     m_email = EMAIL_REGEX.search(header_text)
                     if m_email:
@@ -64,6 +159,11 @@ class RetrievalResult:
         # Guaranteed resume preview link (works for local files, cloud files, and auto-synthesized PDFs)
         resume_url = f"http://127.0.0.1:8000/api/v1/candidates/{self.candidate.id}/resume"
 
+        # Full extracted skills inventory
+        cand_skills = []
+        if self.candidate.skills:
+            cand_skills = [{"name": s.original_extracted_skill} for s in self.candidate.skills if s.original_extracted_skill]
+
         return {
             "candidate_id": str(self.candidate.id),
             "name": self.candidate.name,
@@ -75,6 +175,11 @@ class RetrievalResult:
             "gender": self.candidate.demographics.gender if self.candidate.demographics else None,
             "current_company": self.candidate.current_company,
             "resume_url": resume_url,
+            "skills": cand_skills,
+            "education": sections.get('education', []),
+            "work_history": sections.get('experience', []),
+            "summary": sections.get('summary', ''),
+            "raw_text": raw_text_snippet,
             "retrieval_score": round(self.retrieval_score, 4),
             "skill_match_score": round(self.skill_match_score, 4),
             "semantic_similarity": round(self.semantic_similarity, 4),
@@ -163,10 +268,15 @@ class HybridRetrievalEngine:
                 import logging
                 logging.getLogger(__name__).warning(f"RLHF adjustment failed: {e}")
 
-        # 2. Extract job skills for scoring
-        mandatory_ids = [r.get("canonical_skill_id") for r in (job.mandatory_skills or []) if r.get("canonical_skill_id")]
-        preferred_ids = [r.get("canonical_skill_id") for r in (job.preferred_skills or []) if r.get("canonical_skill_id")]
-        preferred_names = [r.get("canonical_skill_name") for r in (job.preferred_skills or []) if r.get("canonical_skill_name")]
+        # 2. Extract job skills and target role for scoring
+        mandatory_items = job.mandatory_skills or []
+        preferred_items = job.preferred_skills or []
+        
+        target_role = getattr(job, "target_role", None) or getattr(job, "title", None) or ""
+        role_tokens = [
+            w.lower() for w in re.split(r'[\s/,-]+', target_role)
+            if len(w) > 2 and w.lower() not in ["custom", "search", "with", "experienced", "engineer", "developer", "professional", "role", "senior", "lead", "architect"]
+        ]
 
         # -------------------------------------------------------------
         # A. Semantic Similarity: Multi-Vector ColBERT MaxSim (pgvector)
@@ -214,77 +324,80 @@ class HybridRetrievalEngine:
                 # Fallback if DB doesn't support pgvector (e.g. mock DB in tests)
                 pass
 
-        # Ensure we don't divide by zero
-        max_exp = max((c.total_experience_years or 0.0 for c in candidates), default=1.0)
-        if max_exp <= 0: max_exp = 1.0
-
         for c in candidates:
             res = RetrievalResult(c, eligible_map[c.id])
-            
-            # --- A. Semantic Similarity (ColBERT MaxSim Boost) ---
-            global_sim = vector_distances.get(c.id, 0.0)
-            sec_sim = section_max_sims.get(c.id, 0.0)
-            
-            # If a specific section (e.g. specialized past job or core skill chunk)
-            # has high similarity, elevate candidate with MaxSim
-            if sec_sim > 0:
-                res.semantic_similarity = max(global_sim, sec_sim)
-                res.best_matching_section = best_matching_sections.get(c.id)
-            else:
-                res.semantic_similarity = global_sim
-
-            # --- B. Experience Signal ---
-            # Normalized against the pool max
-            c_exp = c.total_experience_years or 0.0
-            res.experience_signal = min(c_exp / max_exp, 1.0)
-
-            # --- C. Structured Skill & Preferred Skill Match ---
+            cand_title = (c.current_title or "").lower()
             c_skill_ids = set(s.canonical_skill_id for s in c.skills if s.canonical_skill_id)
-            c_skill_names = set(s.original_extracted_skill.lower() for s in c.skills)
+            c_skill_names = set(s.original_extracted_skill.lower() for s in c.skills if s.original_extracted_skill)
             
-            # Mandatory overlap
-            if mandatory_ids:
-                overlap = len(set(mandatory_ids).intersection(c_skill_ids))
-                res.skill_match_score = overlap / len(mandatory_ids)
+            # --- 1. Mandatory Skills Match ---
+            mand_matched = []
+            for req in mandatory_items:
+                req_name = req.get("canonical_skill_name")
+                req_id = req.get("canonical_skill_id")
+                if candidate_has_skill(req_name, req_id, c_skill_ids, c_skill_names, cand_title):
+                    mand_matched.append(req_name or str(req_id))
+                    
+            res.mandatory_count = len(mandatory_items)
+            res.mandatory_matched_count = len(mand_matched)
+            if mandatory_items:
+                res.skill_match_score = len(mand_matched) / len(mandatory_items)
             else:
-                res.skill_match_score = 1.0 # No mandatory skills = perfect match
+                res.skill_match_score = 0.5  # Neutral baseline
                 
-            # Preferred overlap
+            # --- 2. Preferred Skills Match ---
             pref_matched = []
             pref_missing = []
-            
-            for p_id, p_name in zip(preferred_ids + [None]*(len(preferred_names)-len(preferred_ids)), preferred_names):
-                matched = False
-                if p_id and p_id in c_skill_ids:
-                    matched = True
-                elif p_name and p_name.lower() in c_skill_names:
-                    matched = True
-                    
-                if matched:
-                    pref_matched.append(p_name)
-                    res.matched_skills.append(p_name)
+            for req in preferred_items:
+                req_name = req.get("canonical_skill_name")
+                req_id = req.get("canonical_skill_id")
+                if candidate_has_skill(req_name, req_id, c_skill_ids, c_skill_names, cand_title):
+                    pref_matched.append(req_name or str(req_id))
                 else:
-                    pref_missing.append(p_name)
-                    
+                    if req_name:
+                        pref_missing.append(req_name)
+                        
             res.missing_preferred_skills = pref_missing
-            if preferred_names:
-                res.preferred_skill_signal = len(pref_matched) / len(preferred_names)
+            if preferred_items:
+                res.preferred_skill_signal = len(pref_matched) / len(preferred_items)
             else:
-                res.preferred_skill_signal = 1.0
+                res.preferred_skill_signal = 0.0
                 
-            # Also append mandatory skills to matched_skills for explainability
-            for req in (job.mandatory_skills or []):
-                name = req.get("canonical_skill_name")
-                id = req.get("canonical_skill_id")
-                if (id and id in c_skill_ids) or (name and name.lower() in c_skill_names):
-                    res.matched_skills.append(name)
-                    
-            res.matched_skills = list(set(res.matched_skills))
+            res.matched_skills = list(dict.fromkeys(mand_matched + pref_matched))
             
+            # --- 3. Role / Title Match ---
+            role_sim = 0.0
+            if role_tokens and cand_title:
+                matches = sum(1 for tok in role_tokens if tok in cand_title)
+                role_sim = min(1.0, matches / len(role_tokens))
+                
+            # --- 4. Semantic Similarity (Vectors + Role Title Boost) ---
+            global_sim = vector_distances.get(c.id, 0.0)
+            sec_sim = section_max_sims.get(c.id, 0.0)
+            base_vector_sim = max(global_sim, sec_sim)
+            
+            if base_vector_sim > 0:
+                res.semantic_similarity = (base_vector_sim * 0.7) + (role_sim * 0.3)
+                res.best_matching_section = best_matching_sections.get(c.id)
+            else:
+                res.semantic_similarity = role_sim
+                if role_sim > 0:
+                    res.best_matching_section = f"Job Title: {c.current_title}"
+                
+            # --- 5. Experience Signal ---
+            c_exp = c.total_experience_years or 0.0
+            if job.min_experience_years and job.min_experience_years > 0:
+                if c_exp >= job.min_experience_years:
+                    res.experience_signal = 1.0
+                else:
+                    res.experience_signal = max(0.0, c_exp / job.min_experience_years)
+            else:
+                res.experience_signal = min(c_exp / 15.0, 1.0)
+                
             results.append(res)
             
         # 3. Deterministic Ranking
-        results.sort(key=lambda x: x.retrieval_score, reverse=True)
+        results.sort(key=lambda x: (x.retrieval_score, x.experience_signal), reverse=True)
         
         # 4. Top-K Slice
         top_results = results[:top_k]

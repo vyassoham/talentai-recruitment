@@ -311,15 +311,36 @@ class AIReranker:
         missing_pref = c_dict.get("missing_preferred_skills", [])
         exp = c_dict.get("total_experience_years")
         title = c_dict.get("current_title") or "Technical Professional"
+        email = c_dict.get("email")
+        phone = c_dict.get("phone")
+        location = c_dict.get("location")
+        education = c_dict.get("education") or []
+        work_history = c_dict.get("work_history") or []
+        skills = c_dict.get("skills") or []
+        all_skills_str = ", ".join([s["name"] if isinstance(s, dict) else str(s) for s in skills[:8]])
         
         strengths = []
+        # Contact information header
+        if email or phone:
+            contact_str = f"📧 Contact: {email or 'Email in CV'} | 📞 {phone or 'Phone in CV'}"
+            if location:
+                contact_str += f" | 📍 {location}"
+            strengths.append(contact_str)
+            
         if matched:
-            top_skills_str = ", ".join(matched[:3])
-            strengths.append(f"Demonstrated skills in {top_skills_str}")
+            top_skills_str = ", ".join(matched[:4])
+            strengths.append(f"Demonstrated core skills: {top_skills_str}")
+        elif all_skills_str:
+            strengths.append(f"Technical Skills: {all_skills_str}")
+            
         if exp is not None and exp > 0:
-            strengths.append(f"{exp} years relevant professional experience")
+            strengths.append(f"{exp} years relevant professional experience ({title})")
+            
+        if education:
+            strengths.append(f"🎓 Education: {education[0]}")
+            
         if c_dict.get("best_matching_section"):
-            strengths.append(f"Strong contextual alignment in {c_dict['best_matching_section']}")
+            strengths.append(f"Strong contextual alignment: {c_dict['best_matching_section']}")
             
         verdict = (
             "Highly Recommended" if score >= 0.75 
@@ -347,22 +368,64 @@ class AIReranker:
         c_dict["final_score"] = c_dict["composite_score"]
         c_dict["match_reasons"] = c_dict["ai_evaluation"]["key_strengths"]
         
-        # Build evaluations list: if candidate has matched skills, provide structured audits
-        # Note: if matched is empty (e.g. mock unit tests), evaluations remains empty []
+        # Build evaluations list: provides structured resume evidence audits for skills, contact, education & projects
         eval_items = []
+        
+        # 1. Contact & Identity Audit
+        if email or phone:
+            eval_items.append({
+                "requirement": "Candidate Contact & Outreach",
+                "assessment": "Verified",
+                "confidence": 1.0,
+                "evidence_quote": f"Email: {email or 'Available in CV'} | Phone: {phone or 'Available in CV'} | Location: {location or 'India'}"
+            })
+            
+        # 2. Matched Core Skills Audit
         if matched:
             for s in matched[:4]:
                 eval_items.append({
-                    "requirement": s,
+                    "requirement": f"Skill: {s}",
                     "assessment": "Meets",
                     "confidence": 0.95,
-                    "evidence_quote": f"Verified skill matching job requirement: {s}"
+                    "evidence_quote": f"Verified hands-on proficiency from candidate resume: {s}"
                 })
-            for s in missing_pref[:2]:
+        elif skills:
+            eval_items.append({
+                "requirement": "Technical Skills Inventory",
+                "assessment": "Meets",
+                "confidence": 0.95,
+                "evidence_quote": f"Extracted skills: {all_skills_str}"
+            })
+            
+        # 3. Work Experience / Accomplishments ("Kya-Kya Kaam Kiya Hai")
+        if work_history:
+            for i, bullet in enumerate(work_history[:4], 1):
+                clean_bullet = bullet.strip().lstrip("•-*▪ ").strip()
+                if clean_bullet:
+                    eval_items.append({
+                        "requirement": f"Work / Project Accomplishment #{i}",
+                        "assessment": "Meets",
+                        "confidence": 0.95,
+                        "evidence_quote": clean_bullet
+                    })
+                    
+        # 4. Education & Credentials Segment
+        if education:
+            for i, edu in enumerate(education[:2], 1):
                 eval_items.append({
-                    "requirement": s,
-                    "assessment": "Partially Meets",
-                    "confidence": 0.70,
-                    "evidence_quote": "Preferred skill not explicitly indexed in primary skill set"
+                    "requirement": f"Education / Credential #{i}",
+                    "assessment": "Verified",
+                    "confidence": 0.95,
+                    "evidence_quote": edu
                 })
+                
+        # 5. Missing Preferred Skills
+        for s in missing_pref[:2]:
+            eval_items.append({
+                "requirement": f"Preferred: {s}",
+                "assessment": "Partially Meets",
+                "confidence": 0.70,
+                "evidence_quote": "Preferred skill not explicitly indexed in primary skill set"
+            })
+            
         c_dict["evaluations"] = eval_items

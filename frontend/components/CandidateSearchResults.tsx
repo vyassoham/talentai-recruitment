@@ -14,6 +14,7 @@ import {
   X,
   SlidersHorizontal,
   Bot,
+  AlertCircle,
 } from "lucide-react";
 import { CandidateResult, SearchResponse } from "../lib/types";
 import { api } from "../lib/api";
@@ -55,6 +56,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
   const [fastMode, setFastMode] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [searchResponse, setSearchResponse] = useState<SearchResponse | null>(
     null,
   );
@@ -90,7 +92,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
     }
   };
 
-  const handleSearch = async (e?: React.FormEvent, overrideQuery?: string) => {
+  const handleSearch = async (e?: React.FormEvent, overrideQuery?: string, isRetry: boolean = false) => {
     if (e) e.preventDefault();
 
     const queryToUse =
@@ -98,16 +100,22 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
     if (!queryToUse.trim()) return;
 
     setIsSearching(true);
+    setSearchError(null);
     try {
       const jobId = activeJobId || "1";
       const res = await api.searchCandidates(jobId, topK, queryToUse, fastMode, fastMode ? 0 : 2);
       setSearchResponse(res);
-      if (res.candidates.length > 0) {
+      setSearchError(null);
+      if (res.candidates && res.candidates.length > 0) {
         setExpandedCandidate(res.candidates[0].candidate_id);
       }
     } catch (err: any) {
-      setSearchResponse(null);
-      alert("Search failed. Please try again.");
+      if (!isRetry) {
+        // Transparent auto-retry after 1.5s in case backend was cold-starting
+        await new Promise((r) => setTimeout(r, 1500));
+        return handleSearch(undefined, queryToUse, true);
+      }
+      setSearchError(err?.message || "Cloud search engine is warming up. Please tap Retry.");
     } finally {
       setIsSearching(false);
     }
@@ -138,8 +146,7 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
       setFeedbackCandidateId(null);
       setFeedbackComments("");
     } catch (err: any) {
-      setSearchResponse(null);
-      alert("Search failed. Please try again.");
+      alert("Failed to submit candidate feedback. Please try again.");
     } finally {
       setIsSubmittingFeedback(false);
     }
@@ -321,6 +328,22 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
             </div>
           )}
         </form>
+
+        {searchError && (
+          <div className="mt-3 flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200 text-xs">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+              <span>{searchError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleSearch(undefined, undefined, false)}
+              className="rounded bg-amber-500/20 px-2.5 py-1 text-xs font-medium text-amber-300 hover:bg-amber-500/30 border border-amber-500/40 transition"
+            >
+              Retry
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 2. Telemetry Section (4-Column Minimalist KPI Grid) */}

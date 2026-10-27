@@ -24,6 +24,143 @@ router = APIRouter()
 # High-speed LRU query embedding cache
 _QUERY_EMBEDDING_CACHE: dict[str, list[float]] = {}
 
+TECH_SKILL_PATTERNS = [
+    # Data & Distributed Systems
+    ("apache spark", "Apache Spark"),
+    ("pyspark", "Apache Spark"),
+    ("spark", "Apache Spark"),
+    ("kafka", "Kafka"),
+    ("airflow", "Airflow"),
+    ("apache airflow", "Airflow"),
+    ("bigquery", "BigQuery"),
+    ("snowflake", "Snowflake"),
+    ("hadoop", "Hadoop"),
+    ("hive", "Hive"),
+    ("databricks", "Databricks"),
+    ("dbt", "dbt"),
+    
+    # Backend & Frameworks
+    ("fastapi", "FastAPI"),
+    ("flask", "Flask"),
+    ("django", "Django"),
+    ("spring boot", "Spring Boot"),
+    ("spring", "Spring Boot"),
+    ("express", "Express"),
+    ("nest.js", "NestJS"),
+    ("nestjs", "NestJS"),
+    
+    # Databases
+    ("postgresql", "PostgreSQL"),
+    ("postgres", "PostgreSQL"),
+    ("psql", "PostgreSQL"),
+    ("mysql", "MySQL"),
+    ("mongodb", "MongoDB"),
+    ("redis", "Redis"),
+    ("cassandra", "Cassandra"),
+    ("sqlite", "SQLite"),
+    ("dynamodb", "DynamoDB"),
+    ("oracle", "Oracle"),
+    ("sql server", "SQL Server"),
+    ("sql", "SQL"),
+    
+    # Programming Languages
+    ("python", "Python"),
+    ("javascript", "JavaScript"),
+    ("typescript", "TypeScript"),
+    ("java", "Java"),
+    ("c++", "C++"),
+    ("c#", "C#"),
+    (".net", ".NET"),
+    ("dotnet", ".NET"),
+    ("golang", "Go"),
+    ("rust", "Rust"),
+    ("php", "PHP"),
+    ("ruby", "Ruby"),
+    ("scala", "Scala"),
+    ("kotlin", "Kotlin"),
+    ("swift", "Swift"),
+    
+    # Frontend & Fullstack
+    ("react", "React"),
+    ("react.js", "React"),
+    ("reactjs", "React"),
+    ("next.js", "Next.js"),
+    ("nextjs", "Next.js"),
+    ("angular", "Angular"),
+    ("vue", "Vue"),
+    ("vue.js", "Vue"),
+    ("tailwind", "Tailwind"),
+    ("html", "HTML"),
+    ("css", "CSS"),
+    ("redux", "Redux"),
+    
+    # Cloud & DevOps
+    ("docker", "Docker"),
+    ("kubernetes", "Kubernetes"),
+    ("k8s", "Kubernetes"),
+    ("aws", "AWS"),
+    ("amazon web services", "AWS"),
+    ("azure", "Azure"),
+    ("gcp", "GCP"),
+    ("google cloud", "GCP"),
+    ("terraform", "Terraform"),
+    ("ansible", "Ansible"),
+    ("jenkins", "Jenkins"),
+    ("ci/cd", "CI/CD"),
+    ("devops", "DevOps"),
+    ("git", "Git"),
+    ("linux", "Linux"),
+    
+    # AI / ML / Data Science
+    ("pytorch", "PyTorch"),
+    ("tensorflow", "TensorFlow"),
+    ("scikit-learn", "Scikit-Learn"),
+    ("pandas", "Pandas"),
+    ("numpy", "NumPy"),
+    ("machine learning", "Machine Learning"),
+    ("deep learning", "Deep Learning"),
+    ("nlp", "NLP"),
+    ("computer vision", "Computer Vision"),
+    ("llm", "LLM"),
+    ("pgvector", "pgvector"),
+    ("langchain", "LangChain"),
+    ("huggingface", "HuggingFace"),
+    
+    # Architecture
+    ("microservices", "Microservices"),
+    ("rest api", "REST API"),
+    ("graphql", "GraphQL"),
+    ("distributed systems", "Distributed Systems"),
+    ("system design", "System Design")
+]
+
+ROLE_PATTERNS = [
+    ("data engineer", "Data Engineer"),
+    ("big data engineer", "Data Engineer"),
+    ("python developer", "Python Developer"),
+    ("python engineer", "Python Developer"),
+    ("backend developer", "Backend Developer"),
+    ("backend engineer", "Backend Developer"),
+    ("frontend developer", "Frontend Developer"),
+    ("frontend engineer", "Frontend Developer"),
+    ("full stack", "Full Stack Developer"),
+    ("fullstack", "Full Stack Developer"),
+    ("devops engineer", "DevOps Engineer"),
+    ("cloud engineer", "Cloud Engineer"),
+    ("cloud architect", "Cloud Architect"),
+    ("solution architect", "Solutions Architect"),
+    ("solutions architect", "Solutions Architect"),
+    ("software architect", "Software Architect"),
+    ("architect", "Architect"),
+    ("machine learning engineer", "Machine Learning Engineer"),
+    ("ml engineer", "Machine Learning Engineer"),
+    ("data scientist", "Data Scientist"),
+    ("qa engineer", "QA Engineer"),
+    ("mobile developer", "Mobile Developer"),
+    ("android developer", "Android Developer"),
+    ("ios developer", "iOS Developer"),
+]
+
 class SearchRequest(BaseModel):
     job_id: Optional[str] = Field(default="1", min_length=0, max_length=100, description="Unique ID of the target JobRequirement")
     query: Optional[str] = Field(default=None, description="Free-form natural language query in English, Hinglish, or Hindi")
@@ -75,35 +212,50 @@ async def search_candidates(
             job.raw_description = f"CRITICAL USER REQUIREMENT: {request.query}\n\nOriginal JD Context:\n{job.raw_description or ''}"
             job.title = f"Custom Search: {request.query[:50]}"
 
-            # Smart AI/ML intent extraction from natural language query
-            KNOWN_TECH_SKILLS = [
-                "python", "java", "c++", "c#", ".net", "dotnet", "javascript", "typescript", "react",
-                "node.js", "nodejs", "fastapi", "flask", "django", "sql", "postgresql", "mysql", "mongodb",
-                "redis", "docker", "kubernetes", "aws", "azure", "gcp", "devops", "ci/cd", "git", "linux",
-                "rest api", "graphql", "html", "css", "tailwind", "next.js", "vue", "angular", "spark",
-                "kafka", "airflow", "hadoop", "pandas", "numpy", "pytorch", "tensorflow", "machine learning",
-                "deep learning", "nlp", "llm", "pgvector", "distributed systems"
-            ]
+            # Smart AI/ML intent extraction from natural language and Hinglish queries
             extracted_skills = []
-            for s in KNOWN_TECH_SKILLS:
-                pattern = r'\b' + re.escape(s) + r'\b'
-                if re.search(pattern, clean_q):
-                    extracted_skills.append({"canonical_skill_name": s.title()})
+            seen_skills = set()
+            for pattern, canonical in TECH_SKILL_PATTERNS:
+                if re.search(r'\b' + re.escape(pattern) + r'\b', clean_q):
+                    if canonical not in seen_skills:
+                        extracted_skills.append({"canonical_skill_name": canonical})
+                        seen_skills.add(canonical)
+
+            found_role = None
+            for pattern, role in ROLE_PATTERNS:
+                if re.search(r'\b' + re.escape(pattern) + r'\b', clean_q):
+                    found_role = role
+                    break
+
+            # Attach target role for semantic ranking boost
+            job.target_role = found_role or job.title
 
             if extracted_skills:
-                job.mandatory_skills = extracted_skills[:4]
-                job.preferred_skills = extracted_skills[4:]
+                # If 1 to 5 skills mentioned, all are mandatory requirements
+                # If more than 5, top 5 are mandatory, rest preferred
+                if len(extracted_skills) <= 5:
+                    job.mandatory_skills = extracted_skills
+                    job.preferred_skills = []
+                else:
+                    job.mandatory_skills = extracted_skills[:5]
+                    job.preferred_skills = extracted_skills[5:]
             else:
                 job.mandatory_skills = []
                 job.preferred_skills = []
 
-            # Extract experience intent if specified (e.g., "5+ years", "3 yrs")
-            exp_match = re.search(r'(\d+(?:\.\d+)?)\+?\s*(?:years?|yrs?)', clean_q)
+            # Extract experience intent (e.g. "5+ years", "3 yrs", "5 saal", "senior", "lead")
+            exp_match = re.search(r'(\d+(?:\.\d+)?)\+?\s*(?:years?|yrs?|saal)', clean_q)
             if exp_match:
                 try:
                     job.min_experience_years = float(exp_match.group(1))
                 except Exception:
                     pass
+            elif any(w in clean_q for w in ["lead", "principal", "architect"]):
+                job.min_experience_years = 7.0
+            elif any(w in clean_q for w in ["senior", "sr."]):
+                job.min_experience_years = 4.0
+            elif any(w in clean_q for w in ["junior", "fresher", "jr."]):
+                job.min_experience_years = 0.0
         except Exception:
             pass
         
@@ -118,9 +270,10 @@ async def search_candidates(
     )
     
     if job.min_experience_years is not None and job.min_experience_years > 0:
+        inclusive_min = max(0.0, job.min_experience_years - 2.0)
         candidate_query = candidate_query.filter(
             or_(
-                Candidate.total_experience_years >= job.min_experience_years,
+                Candidate.total_experience_years >= inclusive_min,
                 Candidate.total_experience_years.is_(None)
             )
         )

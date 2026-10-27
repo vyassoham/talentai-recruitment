@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">TalentAI Enterprise</string>
+    <string name="update_available_title">New Update Available</string>
+    <string name="update_available_msg">A newer version of TalentAI is ready to install.</string>
+    <string name="btn_update_now">Update Now</string>
+    <string name="btn_later">Later</string>
+    <string name="downloading_update">Downloading update…</string>
+    <string name="update_download_complete">Update downloaded. Tap to install.</string>
+</resources>

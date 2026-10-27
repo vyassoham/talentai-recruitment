@@ -119,6 +119,43 @@ def get_upload_status(
         "error_message": job_status.get("error") or res.get("error")
     }
 
+@router.get("/candidates/{candidate_id}")
+def get_candidate_details(
+    candidate_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("RECRUITER"))
+):
+    from models.all_models import Candidate
+    from services.search.retrieval import extract_candidate_sections
+    
+    candidate = db.get(Candidate, candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    doc = candidate.documents[0] if candidate.documents else None
+    raw_text = doc.raw_extracted_text if doc else ""
+    sections = extract_candidate_sections(raw_text)
+    
+    cand_skills = [{"name": s.original_extracted_skill} for s in candidate.skills if s.original_extracted_skill]
+    
+    return {
+        "candidate_id": str(candidate.id),
+        "name": candidate.name,
+        "email": candidate.email,
+        "phone": candidate.phone,
+        "location": candidate.location,
+        "current_title": candidate.current_title,
+        "current_company": candidate.current_company,
+        "total_experience_years": candidate.total_experience_years,
+        "gender": candidate.demographics.gender if candidate.demographics else None,
+        "resume_url": f"http://127.0.0.1:8000/api/v1/candidates/{candidate.id}/resume",
+        "skills": cand_skills,
+        "summary": sections.get('summary', ''),
+        "education": sections.get('education', []),
+        "work_history": sections.get('experience', []),
+        "raw_text": raw_text[:4000] if raw_text else None
+    }
+
 @router.delete("/candidates/{candidate_id}")
 def delete_candidate(
     candidate_id: int, 
@@ -192,3 +229,20 @@ def submit_demographics(
         
     db.commit()
     return {"status": "SUCCESS"}
+
+@router.get("/app/version")
+def get_app_version():
+    """
+    Returns mobile app version info for in-app OTA update checks.
+    """
+    return {
+        "status": "SUCCESS",
+        "latest_version": "1.0.1",
+        "latest_version_code": 10001,
+        "min_supported_version_code": 10000,
+        "download_url": "https://talentai-recruiter.vercel.app/download/talentai-latest.apk",
+        "release_notes": "TalentAI Mobile v1.0.1:\n- Enterprise candidate semantic search\n- Real-time AI candidate matching\n- In-app OTA updates\n- Offline resilience & instant resume viewing",
+        "mandatory": False,
+        "published_at": "2026-10-27T00:00:00Z"
+    }
+

@@ -40,12 +40,17 @@ export const BASE_URL = getApiBaseUrl();
 class ApiClient {
   private baseUrl: string;
   private token: string | null = null;
+  private isRefreshingToken: boolean = false;
 
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl ? baseUrl.replace(/\/+$/, "") : getApiBaseUrl();
     if (typeof window !== "undefined") {
       this.token = localStorage.getItem("talentai_jwt_token");
-      // Silently auto-authenticate if not present
+      // Silently wake up the Render backend in the background so cold start is eliminated
+      const healthUrl = this.baseUrl.replace(/\/api\/v1\/?$/, "") + "/health";
+      fetch(healthUrl, { method: "GET", mode: "cors" }).catch(() => {});
+
+      // Auto-authenticate immediately if no token
       if (!this.token) {
         this.login("admin@recruit.ai", "admin_password").catch(() => {});
       }
@@ -78,7 +83,7 @@ class ApiClient {
     return this.token;
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  private async request<T>(path: string, options: RequestInit = {}, retryCount: number = 0): Promise<T> {
     const headers: Record<string, string> = {
       ...(options.headers as Record<string, string>),
     };
@@ -101,18 +106,44 @@ class ApiClient {
     const cleanPath = path.startsWith("/") ? path : `/${path}`;
     const url = `${cleanBase}${cleanPath}`;
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } catch (networkErr: any) {
+      // Auto-retry up to 2 times with backoff on Render cold start or network hiccups
+      if (retryCount < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return this.request<T>(path, options, retryCount + 1);
+      }
+      throw new Error(`Network connection error: ${networkErr.message || "Failed to reach server"}.`);
+    }
 
     if (!response.ok) {
-      if (response.status === 401) {
+      // Automatic silent re-authentication on 401
+      if (response.status === 401 && path !== "/auth/token" && !this.isRefreshingToken) {
+        this.isRefreshingToken = true;
         this.setToken(null);
-        if (typeof window !== "undefined") {
-          window.location.reload();
+        try {
+          const authData = await this.login("admin@recruit.ai", "admin_password");
+          this.isRefreshingToken = false;
+          if (authData?.access_token) {
+            headers["Authorization"] = `Bearer ${authData.access_token}`;
+            return this.request<T>(path, { ...options, headers }, retryCount + 1);
+          }
+        } catch (reAuthErr) {
+          this.isRefreshingToken = false;
         }
       }
+
+      // Auto-retry on Render 502/503/504 cold-start gateway errors
+      if ([502, 503, 504].includes(response.status) && retryCount < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        return this.request<T>(path, options, retryCount + 1);
+      }
+
       let errorMessage = `API Error ${response.status}: ${response.statusText}`;
       try {
         const errorData = await response.json();
@@ -187,6 +218,10 @@ class ApiClient {
     error_message?: string;
   }> {
     return this.request(`/candidates/upload/${jobId}/status`);
+  }
+
+  async getCandidate(candidateId: number | string): Promise<CandidateResult> {
+    return this.request(`/candidates/${candidateId}`);
   }
 
   async deleteCandidate(candidateId: number): Promise<{ message: string }> {
