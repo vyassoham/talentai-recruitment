@@ -68,12 +68,33 @@ class GeminiProvider(AIProvider):
     """
     Native Google Gemini LLM & Embedding provider using Google AI Studio.
     Supports free tier inference with Gemini 3.6/2.5/1.5 Flash and 1536-d vector embeddings.
+    Supports multi-key rotation across multiple Google AI Studio API keys.
     """
     def __init__(self, api_key: str, model: str = None, embedding_model: str = None):
-        self.api_key = api_key
+        if isinstance(api_key, str):
+            self.api_keys = [k.strip() for k in api_key.split(",") if k.strip()]
+        elif isinstance(api_key, (list, tuple)):
+            self.api_keys = [str(k).strip() for k in api_key if str(k).strip()]
+        else:
+            self.api_keys = []
+        self._key_index = 0
         self._model = model or settings.GEMINI_MODEL
         self._embedding_model = embedding_model or settings.GEMINI_EMBEDDING_MODEL
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+
+    @property
+    def api_key(self) -> str:
+        if not self.api_keys:
+            return ""
+        return self.api_keys[self._key_index % len(self.api_keys)]
+
+    def rotate_key(self) -> bool:
+        if len(self.api_keys) > 1:
+            old_idx = self._key_index
+            self._key_index = (self._key_index + 1) % len(self.api_keys)
+            logger.info(f"Rotated Gemini API key from index {old_idx} to {self._key_index}")
+            return True
+        return False
 
     @property
     def model_name(self) -> str:
@@ -154,42 +175,47 @@ class GeminiProvider(AIProvider):
                 raise AIProviderError(f"Gemini generation error: {e}", retryable=False)
 
     def generate_embeddings(self, text: str) -> tuple[List[float], dict]:
-        url = f"{self.base_url}/models/{self._embedding_model}:embedContent?key={self.api_key}"
         payload = {
             "model": f"models/{self._embedding_model}",
             "content": {"parts": [{"text": text}]},
             "outputDimensionality": 1536
         }
 
-        try:
-            resp = requests.post(url, json=payload, timeout=30)
-            if resp.status_code == 429:
-                err_msg = "Gemini Embedding Rate Limit"
-                try:
-                    err_json = resp.json()
-                    err_msg = err_json.get("error", {}).get("message", resp.text)
-                except Exception:
-                    pass
-                is_daily = "per day" in err_msg.lower() or "free_tier_requests" in err_msg.lower()
-                raise AIProviderError(f"Gemini Embedding Rate Limit: {err_msg}", retryable=not is_daily)
-            elif resp.status_code != 200:
-                raise AIProviderError(f"Gemini Embedding Error ({resp.status_code}): {resp.text}", retryable=False)
+        key_attempts = max(1, len(self.api_keys))
+        for _ in range(key_attempts):
+            url = f"{self.base_url}/models/{self._embedding_model}:embedContent?key={self.api_key}"
+            try:
+                resp = requests.post(url, json=payload, timeout=30)
+                if resp.status_code == 429:
+                    err_msg = "Gemini Embedding Rate Limit"
+                    try:
+                        err_json = resp.json()
+                        err_msg = err_json.get("error", {}).get("message", resp.text)
+                    except Exception:
+                        pass
+                    is_daily = "per day" in err_msg.lower() or "free_tier_requests" in err_msg.lower()
+                    if is_daily and self.rotate_key():
+                        logger.info("Daily quota exceeded on key, rotated to next Gemini API key.")
+                        continue
+                    raise AIProviderError(f"Gemini Embedding Rate Limit: {err_msg}", retryable=not is_daily)
+                elif resp.status_code != 200:
+                    raise AIProviderError(f"Gemini Embedding Error ({resp.status_code}): {resp.text}", retryable=False)
 
-            data = resp.json()
-            embedding_vals = data.get("embedding", {}).get("values", [])
-            if not embedding_vals:
-                raise AIProviderError("Empty embedding returned from Gemini", retryable=False)
+                data = resp.json()
+                embedding_vals = data.get("embedding", {}).get("values", [])
+                if not embedding_vals:
+                    raise AIProviderError("Empty embedding returned from Gemini", retryable=False)
 
-            usage = {"prompt_tokens": len(text) // 4, "completion_tokens": 0}
-            return embedding_vals, usage
+                usage = {"prompt_tokens": len(text) // 4, "completion_tokens": 0}
+                return embedding_vals, usage
 
-        except AIProviderError:
-            raise
-        except Exception as e:
-            logger.error(f"Gemini embedding error: {e}", exc_info=True)
-            if "pytest" in sys.modules or os.getenv("TESTING") == "1":
-                return MockProvider().generate_embeddings(text)
-            raise AIProviderError(f"Gemini embedding failed: {e}", retryable=False)
+            except AIProviderError:
+                raise
+            except Exception as e:
+                logger.error(f"Gemini embedding error: {e}", exc_info=True)
+                if "pytest" in sys.modules or os.getenv("TESTING") == "1":
+                    return MockProvider().generate_embeddings(text)
+                raise AIProviderError(f"Gemini embedding failed: {e}", retryable=False)
 
 class OpenAILikeProvider(AIProvider):
     def __init__(self, api_key: str, base_url: str = None, model: str = None, embedding_model: str = None):
