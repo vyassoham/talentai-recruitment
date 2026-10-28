@@ -360,6 +360,29 @@ def submit_feedback(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("RECRUITER"))
 ):
+    candidate = db.get(Candidate, candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Enforce multi-tenant candidate isolation
+    if current_user.role != "ADMIN" and getattr(candidate, "organization_id", None) and getattr(current_user, "organization_id", None):
+        if candidate.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Verify job requirement belongs to tenant if job_id is provided
+    if request.job_id:
+        job = None
+        if request.job_id.isdigit():
+            job = db.get(JobRequirement, int(request.job_id))
+        if not job:
+            try:
+                job = db.get(JobRequirement, request.job_id)
+            except Exception:
+                pass
+        if job and current_user.role != "ADMIN" and getattr(job, "organization_id", None) and getattr(current_user, "organization_id", None):
+            if job.organization_id != current_user.organization_id:
+                raise HTTPException(status_code=404, detail="Job not found")
+
     feedback = RecruiterFeedback(
         job_id=request.job_id,
         candidate_id=candidate_id,
@@ -384,27 +407,48 @@ async def evaluate_single_candidate(
     """
     On-demand deep AI evaluation for a single candidate using Gemini LLM.
     Quotes verbatim evidence from CV, assesses requirements, and checks hallucinations.
+    Strictly enforces tenant isolation across candidates and job descriptions.
     """
-    job_id = request.job_id if request and request.job_id else "1"
-    job = db.get(JobRequirement, job_id)
-    if not job:
-        job = db.query(JobRequirement).order_by(JobRequirement.created_at.desc()).first()
-    if not job:
-        job = JobRequirement(
-            id=job_id,
-            title="Software Engineering Professional",
-            mandatory_skills=[{"canonical_skill_name": "Software Development"}],
-            min_experience_years=0.0
-        )
-        
     candidate = db.get(Candidate, candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
         
-    # Enforce multi-tenant isolation
-    if current_user.role != "ADMIN" and candidate.organization_id and current_user.organization_id:
+    # Enforce multi-tenant candidate isolation
+    if current_user.role != "ADMIN" and getattr(candidate, "organization_id", None) and getattr(current_user, "organization_id", None):
         if candidate.organization_id != current_user.organization_id:
             raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Enforce multi-tenant job requirement isolation
+    job = None
+    if request and request.job_id:
+        job_id = request.job_id
+        if job_id.isdigit():
+            job = db.get(JobRequirement, int(job_id))
+        if not job:
+            try:
+                job = db.get(JobRequirement, job_id)
+            except Exception:
+                pass
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        if current_user.role != "ADMIN" and getattr(job, "organization_id", None) and getattr(current_user, "organization_id", None):
+            if job.organization_id != current_user.organization_id:
+                raise HTTPException(status_code=404, detail="Job not found")
+    else:
+        # Fall back strictly to the user's organization job
+        job_q = db.query(JobRequirement)
+        if current_user.role != "ADMIN" and getattr(current_user, "organization_id", None):
+            job_q = job_q.filter(JobRequirement.organization_id == current_user.organization_id)
+        job = job_q.order_by(JobRequirement.created_at.desc()).first()
+
+    if not job:
+        job = JobRequirement(
+            id=request.job_id if (request and request.job_id) else "default",
+            organization_id=getattr(current_user, "organization_id", None) or "org_talentai_default",
+            title="Software Engineering Professional",
+            mandatory_skills=[{"canonical_skill_name": "Software Development"}],
+            min_experience_years=0.0
+        )
         
     c_dict = {
         "candidate_id": str(candidate.id),

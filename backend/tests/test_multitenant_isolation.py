@@ -330,3 +330,113 @@ def test_multitenant_stale_profiles_propagates_org_id(monkeypatch):
     assert response.json()["total"] == 1
 
     app.dependency_overrides.clear()
+
+
+def test_multitenant_feedback_cross_candidate_denied():
+    """Verify that Recruiter A attempting to submit feedback for Candidate B gets 404."""
+    mock_db = MagicMock()
+    user_a = create_tenant_user(1, "recruiter_a@tenant-a.com", "org_tenant_a")
+    
+    cand_b = Candidate(id=999, name="Candidate B", organization_id="org_tenant_b")
+    mock_db.get.return_value = cand_b
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: user_a
+
+    response = client.post("/api/v1/candidates/999/feedback", json={
+        "job_id": "1",
+        "feedback_type": "POSITIVE",
+        "comments": "Great candidate"
+    })
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Candidate not found"
+    app.dependency_overrides.clear()
+
+
+def test_multitenant_evaluate_cross_job_denied():
+    """Verify that Recruiter A attempting to evaluate candidate against Tenant B job gets 404."""
+    mock_db = MagicMock()
+    user_a = create_tenant_user(1, "recruiter_a@tenant-a.com", "org_tenant_a")
+    
+    cand_a = Candidate(id=101, name="Candidate A", organization_id="org_tenant_a")
+    job_b = JobRequirement(id=555, title="Job B", organization_id="org_tenant_b")
+
+    def mock_get(model, entity_id):
+        if model is Candidate:
+            return cand_a
+        elif model is JobRequirement:
+            return job_b
+        return None
+
+    mock_db.get.side_effect = mock_get
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: user_a
+
+    response = client.post("/api/v1/candidates/101/evaluate", json={"job_id": "555"})
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Job not found"
+    app.dependency_overrides.clear()
+
+
+def test_multitenant_demographics_unauthenticated_blocked():
+    """Verify that anonymous unauthenticated request to demographics is rejected with 401."""
+    response = client.post("/api/v1/candidates/101/demographics", json={
+        "gender": "Female",
+        "race_ethnicity": "Asian"
+    })
+    assert response.status_code == 401
+
+
+def test_multitenant_demographics_cross_candidate_denied():
+    """Verify that Recruiter A attempting to submit demographics for Candidate B gets 404."""
+    mock_db = MagicMock()
+    user_a = create_tenant_user(1, "recruiter_a@tenant-a.com", "org_tenant_a")
+    
+    cand_b = Candidate(id=888, name="Candidate B", organization_id="org_tenant_b")
+    mock_db.get.return_value = cand_b
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: user_a
+
+    response = client.post("/api/v1/candidates/888/demographics", json={
+        "gender": "Male",
+        "race_ethnicity": "Caucasian"
+    })
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Candidate not found"
+    app.dependency_overrides.clear()
+
+
+def test_multitenant_job_cancel_cross_tenant_denied():
+    """Verify that Recruiter A attempting to cancel Tenant B job gets 404."""
+    mock_db = MagicMock()
+    user_a = create_tenant_user(1, "recruiter_a@tenant-a.com", "org_tenant_a")
+    
+    job_b = JobRequirement(id=777, title="Confidential Job", organization_id="org_tenant_b")
+    mock_db.get.return_value = job_b
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: user_a
+
+    response = client.post("/api/v1/jobs/777/cancel")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Job not found"
+    app.dependency_overrides.clear()
+
+
+def test_multitenant_job_retry_cross_tenant_denied():
+    """Verify that Recruiter A attempting to retry Tenant B job gets 404."""
+    mock_db = MagicMock()
+    user_a = create_tenant_user(1, "recruiter_a@tenant-a.com", "org_tenant_a")
+    
+    job_b = JobRequirement(id=666, title="Confidential Job", organization_id="org_tenant_b")
+    mock_db.get.return_value = job_b
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: user_a
+
+    response = client.post("/api/v1/jobs/666/retry")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Job not found"
+    app.dependency_overrides.clear()

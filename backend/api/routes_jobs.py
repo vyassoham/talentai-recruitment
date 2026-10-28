@@ -134,8 +134,32 @@ def get_job_by_id(
 @router.post("/jobs/{job_id}/cancel")
 def cancel_job(
     job_id: str,
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_role("RECRUITER"))
 ):
+    job_req = None
+    if job_id.isdigit():
+        try:
+            job_req = db.get(JobRequirement, int(job_id))
+        except Exception:
+            pass
+    if not job_req:
+        try:
+            job_req = db.get(JobRequirement, job_id)
+        except Exception:
+            pass
+
+    if job_req and current_user.role != "ADMIN" and getattr(job_req, "organization_id", None) and getattr(current_user, "organization_id", None):
+        if job_req.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+    status_info = queue_client.get_status(job_id)
+    if status_info and isinstance(status_info.get("payload"), dict):
+        payload_org = status_info["payload"].get("organization_id")
+        if current_user.role != "ADMIN" and payload_org and getattr(current_user, "organization_id", None):
+            if payload_org != current_user.organization_id:
+                raise HTTPException(status_code=404, detail="Job not found")
+
     success = queue_client.cancel(job_id)
     if not success:
         raise HTTPException(status_code=400, detail="Cannot cancel job (might be completed or not exist)")
@@ -144,13 +168,36 @@ def cancel_job(
 @router.post("/jobs/{job_id}/retry")
 def retry_job(
     job_id: str,
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_role("RECRUITER"))
 ):
     from services.jobs.job_service import background_process_jd
     
+    job_req = None
+    if job_id.isdigit():
+        try:
+            job_req = db.get(JobRequirement, int(job_id))
+        except Exception:
+            pass
+    if not job_req:
+        try:
+            job_req = db.get(JobRequirement, job_id)
+        except Exception:
+            pass
+
+    if job_req and current_user.role != "ADMIN" and getattr(job_req, "organization_id", None) and getattr(current_user, "organization_id", None):
+        if job_req.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=404, detail="Job not found")
+
     status_info = queue_client.get_status(job_id)
     if not status_info or status_info["status"] not in ["FAILED", "CANCELLED"]:
         raise HTTPException(status_code=400, detail="Cannot retry job (must be FAILED or CANCELLED)")
+
+    if isinstance(status_info.get("payload"), dict):
+        payload_org = status_info["payload"].get("organization_id")
+        if current_user.role != "ADMIN" and payload_org and getattr(current_user, "organization_id", None):
+            if payload_org != current_user.organization_id:
+                raise HTTPException(status_code=404, detail="Job not found")
         
     def retry_wrapper(job_id_param: str, **kwargs):
         return background_process_jd(job_id=job_id_param, raw_description=status_info["payload"]["job_description"])

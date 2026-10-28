@@ -215,12 +215,18 @@ def submit_demographics(
     candidate_id: int, 
     survey: DemographicSurvey, 
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("RECRUITER")),
     _rate_check = Depends(rate_limit(max_requests=10, window_seconds=60))
 ):
     from models.all_models import Candidate, CandidateDemographics
     candidate = db.get(Candidate, candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Enforce multi-tenant isolation
+    if current_user.role != "ADMIN" and getattr(candidate, "organization_id", None) and getattr(current_user, "organization_id", None):
+        if candidate.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=404, detail="Candidate not found")
         
     existing = db.query(CandidateDemographics).filter(CandidateDemographics.candidate_id == candidate_id).first()
     if existing:
