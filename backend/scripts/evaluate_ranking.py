@@ -42,6 +42,14 @@ def recall_at_k(predicted_relevance: List[float], true_relevance: List[float], k
     return retrieved_relevant / total_relevant
 
 def setup_test_db(db: Session, dataset: dict):
+    from core.config import settings
+    db_url = str(settings.DATABASE_URL or "")
+    if ("supabase" in db_url.lower() or "pooler" in db_url.lower()) and not os.getenv("ALLOW_PRODUCTION_DB_WIPE"):
+        raise RuntimeError(
+            "SAFETY VIOLATION PREVENTED: Cannot execute destructive setup_test_db against production Supabase database! "
+            "NDCG evaluation must run against an isolated test container or with an explicit test DB."
+        )
+
     from models.all_models import EvaluationEvidence, RecruiterFeedback, IngestionJob
     # Clear DB in proper foreign key order
     db.query(EvaluationEvidence).delete()

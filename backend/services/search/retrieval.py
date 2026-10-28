@@ -138,24 +138,28 @@ class RetrievalResult:
         raw_text_snippet = None
 
         if doc:
-            raw_text = doc.raw_extracted_text or ""
-            raw_text_snippet = raw_text[:4000] if raw_text else None
-            sections = extract_candidate_sections(raw_text)
+            from sqlalchemy.orm.attributes import instance_state
+            state = instance_state(doc)
+            # Only read raw_extracted_text if it was already loaded in memory, avoiding N+1 remote database roundtrips
+            raw_text = state.dict.get('raw_extracted_text', '') or ""
+            if raw_text:
+                raw_text_snippet = raw_text[:4000]
+                sections = extract_candidate_sections(raw_text)
 
-            # Fallback regex extraction only if missing in DB (bounded to first 2500 chars to avoid CPU spikes on 50KB strings)
-            if (not email or not phone) and raw_text:
-                header_text = raw_text[:2500]
-                if not email:
-                    m_email = EMAIL_REGEX.search(header_text)
-                    if m_email:
-                        email = m_email.group(0)
-                if not phone:
-                    for m_phone in PHONE_REGEX.finditer(header_text):
-                        candidate_phone = m_phone.group(0)
-                        digits = NON_DIGIT_REGEX.sub('', candidate_phone)
-                        if 10 <= len(digits) <= 14:
-                            phone = candidate_phone.strip()
-                            break
+                # Fallback regex extraction only if missing in DB (bounded to first 2500 chars to avoid CPU spikes on 50KB strings)
+                if (not email or not phone):
+                    header_text = raw_text[:2500]
+                    if not email:
+                        m_email = EMAIL_REGEX.search(header_text)
+                        if m_email:
+                            email = m_email.group(0)
+                    if not phone:
+                        for m_phone in PHONE_REGEX.finditer(header_text):
+                            candidate_phone = m_phone.group(0)
+                            digits = NON_DIGIT_REGEX.sub('', candidate_phone)
+                            if 10 <= len(digits) <= 14:
+                                phone = candidate_phone.strip()
+                                break
 
         # Guaranteed resume preview link (works for local files, cloud files, and auto-synthesized PDFs)
         backend_host = os.getenv("BACKEND_PUBLIC_URL", "https://talentai-recruitment.onrender.com").rstrip("/")

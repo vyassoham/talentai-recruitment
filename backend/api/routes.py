@@ -148,7 +148,7 @@ def get_candidate_details(
         "current_company": candidate.current_company,
         "total_experience_years": candidate.total_experience_years,
         "gender": candidate.demographics.gender if candidate.demographics else None,
-        "resume_url": f"http://127.0.0.1:8000/api/v1/candidates/{candidate.id}/resume",
+        "resume_url": f"{os.getenv('BACKEND_PUBLIC_URL', 'https://talentai-recruitment.onrender.com').rstrip('/')}/api/v1/candidates/{candidate.id}/resume",
         "skills": cand_skills,
         "summary": sections.get('summary', ''),
         "education": sections.get('education', []),

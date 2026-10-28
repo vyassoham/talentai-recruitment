@@ -154,7 +154,10 @@ def test_candidate_resume_preview_api():
     mock_db.get.return_value = mock_cand
     mock_db.query().filter().first.return_value = mock_doc
 
+    mock_user = User(id=1, email="recruiter@test.com", role=UserRole.RECRUITER.value, is_active=True)
+
     app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: mock_user
 
     response = client.get("/api/v1/candidates/1/resume")
     assert response.status_code == 200

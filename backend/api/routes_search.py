@@ -442,7 +442,8 @@ async def evaluate_single_candidate(
 @router.get("/candidates/{candidate_id}/resume")
 def get_candidate_resume_preview(
     candidate_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("RECRUITER"))
 ):
     """
     Delivers a guaranteed resume PDF preview.

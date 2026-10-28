@@ -54,7 +54,11 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    # 1. Check Bearer Token if present
+    # Allow token via Query Param for secure direct browser downloads/preview tabs (?token=...)
+    if not token and request is not None and hasattr(request, "query_params"):
+        token = request.query_params.get("token")
+
+    # 1. Check Cryptographic JWT Bearer Token if present
     if token:
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -65,51 +69,21 @@ def get_current_user(
             if user is None:
                 raise credentials_exception
             if not user.is_active:
-                raise HTTPException(status_code=400, detail="Inactive user")
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
             return user
-        except jwt.ExpiredSignatureError:
-            # If request originated from our web app, accept expired token and authenticate gracefully
-            if request is not None and hasattr(request, "headers"):
-                origin = request.headers.get("origin", "").lower()
-                referer = request.headers.get("referer", "").lower()
-                if "vercel.app" in origin or "vercel.app" in referer or "localhost" in origin or "localhost" in referer:
-                    user = db.query(User).filter(User.email == "admin@recruit.ai").first()
-                    if user and user.is_active:
-                        return user
-                    return User(id=1, email="admin@recruit.ai", role="ADMIN", is_active=True)
-            raise credentials_exception
-        except jwt.PyJWTError:
-            # If request originated from our web app with invalid/stale token, fallback gracefully
-            if request is not None and hasattr(request, "headers"):
-                origin = request.headers.get("origin", "").lower()
-                referer = request.headers.get("referer", "").lower()
-                if "vercel.app" in origin or "vercel.app" in referer or "localhost" in origin or "localhost" in referer:
-                    user = db.query(User).filter(User.email == "admin@recruit.ai").first()
-                    if user and user.is_active:
-                        return user
-                    return User(id=1, email="admin@recruit.ai", role="ADMIN", is_active=True)
+        except (jwt.ExpiredSignatureError, jwt.PyJWTError):
             raise credentials_exception
 
-    # 2. Check X-API-Key fallback (for trusted web demo / app clients)
+    # 2. Check X-API-Key header (for automated service clients and machine integrations)
     expected_key = os.getenv("SECRET_API_KEY", "dev-secret-api-key")
-    if api_key and api_key == expected_key:
+    if api_key and expected_key and api_key == expected_key:
         user = db.query(User).filter(User.email == "admin@recruit.ai").first()
         if user and user.is_active:
             return user
-        # In test environments with mocked DB
+        # In mock test environments where DB user table is mocked
         return User(id=1, email="admin@recruit.ai", role="ADMIN", is_active=True)
 
-    # 3. Check Web Demo / Browser fallback for live Vercel & localhost web visitors
-    if request is not None and hasattr(request, "headers"):
-        origin = request.headers.get("origin", "").lower()
-        referer = request.headers.get("referer", "").lower()
-        if "vercel.app" in origin or "vercel.app" in referer or "localhost" in origin or "localhost" in referer:
-            user = db.query(User).filter(User.email == "admin@recruit.ai").first()
-            if user and user.is_active:
-                return user
-            return User(id=1, email="admin@recruit.ai", role="ADMIN", is_active=True)
-
-    # 4. Unauthenticated request without valid token, API key, or web origin
+    # 3. Unauthenticated request without valid token or API key
     raise credentials_exception
 
 def require_role(required_role: str):
