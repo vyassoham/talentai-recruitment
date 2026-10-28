@@ -7,6 +7,7 @@ from fastapi import Depends, HTTPException, status, Security, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from sqlalchemy.orm import Session
 from core.database import get_db
+from core.config import settings
 from models.all_models import User
 
 # Configuration
@@ -80,15 +81,21 @@ def get_current_user(
             raise credentials_exception
 
     # 2. Check X-API-Key header (for automated service clients and machine integrations)
-    expected_key = os.getenv("SECRET_API_KEY", "dev-secret-api-key")
+    expected_key = getattr(settings, "SECRET_API_KEY", None) or os.getenv("SECRET_API_KEY", "dev-secret-api-key")
     if api_key and expected_key and api_key == expected_key:
-        user = db.query(User).filter(User.email == "admin@recruit.ai").first()
+        if (settings.ENVIRONMENT == "production" or os.getenv("RENDER")) and api_key == "dev-secret-api-key":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Default dev-secret-api-key is strictly prohibited in production environments."
+            )
+        admin_email = getattr(settings, "ADMIN_EMAIL", "admin@recruit.ai")
+        user = db.query(User).filter(User.email == admin_email).first()
         if user and user.is_active:
             if not getattr(user, 'organization_id', None):
                 user.organization_id = "org_talentai_default"
             return user
         # In mock test environments where DB user table is mocked
-        return User(id=1, email="admin@recruit.ai", role="ADMIN", is_active=True, organization_id="org_talentai_default")
+        return User(id=1, email=admin_email, role="ADMIN", is_active=True, organization_id="org_talentai_default")
 
     # 3. Unauthenticated request without valid token or API key
     raise credentials_exception

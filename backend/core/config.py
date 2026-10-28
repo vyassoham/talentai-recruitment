@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "temporary-secret-do-not-use-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    ADMIN_EMAIL: str = "admin@recruit.ai"
+    ADMIN_PASSWORD: Optional[str] = None
+    SECRET_API_KEY: Optional[str] = None
     
     # Specific CORS origins to prevent wildcard exfiltration when credentials are enabled
     CORS_ORIGINS: List[str] = [

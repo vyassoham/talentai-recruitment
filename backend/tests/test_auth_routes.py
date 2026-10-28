@@ -47,3 +47,47 @@ def test_authenticated_recruiter_token_flow():
     assert dei_res.status_code == 200
     
     app.dependency_overrides.clear()
+
+
+def test_default_admin_password_rejected():
+    """Verify that the vulnerable default password 'admin_password' is rejected."""
+    res = client.post("/api/v1/auth/token", data={"username": "admin@recruit.ai", "password": "admin_password"})
+    assert res.status_code == 401
+    assert "Incorrect email or password" in res.json().get("detail", "")
+
+
+def test_secure_admin_password_accepted():
+    """Verify that the rotated admin password authenticates successfully."""
+    import os
+    from core.config import settings
+    admin_pw = getattr(settings, "ADMIN_PASSWORD", None) or os.getenv("ADMIN_PASSWORD")
+    if not admin_pw:
+        pytest.skip("ADMIN_PASSWORD not set in environment")
+    res = client.post("/api/v1/auth/token", data={"username": "admin@recruit.ai", "password": admin_pw})
+    assert res.status_code == 200
+    data = res.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+
+def test_dev_secret_api_key_rejected_in_production(monkeypatch):
+    """Verify that default 'dev-secret-api-key' is rejected in production environment."""
+    from core.config import settings
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "SECRET_API_KEY", "dev-secret-api-key")
+    monkeypatch.setenv("SECRET_API_KEY", "dev-secret-api-key")
+    
+    # Try accessing with dev-secret-api-key header
+    headers = {"X-API-Key": "dev-secret-api-key"}
+    res = client.get("/api/v1/analytics/dei", headers=headers)
+    assert res.status_code == 403
+    assert "prohibited in production" in res.json().get("detail", "")
+
+
+def test_seed_admin_disabled_in_production(monkeypatch):
+    """Verify seed-admin endpoint cannot be called in production."""
+    from core.config import settings
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    res = client.post("/api/v1/auth/seed-admin")
+    assert res.status_code == 403
+

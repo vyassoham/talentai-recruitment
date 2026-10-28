@@ -114,8 +114,11 @@ def seed_admin_user(
     if db.query(User).first():
         raise HTTPException(status_code=400, detail="Users already exist. Cannot seed.")
         
-    admin_email = "admin@recruit.ai"
-    admin_password = "admin_password"
+    import secrets
+    admin_email = getattr(settings, "ADMIN_EMAIL", "admin@recruit.ai")
+    admin_password = getattr(settings, "ADMIN_PASSWORD", None) or os.getenv("ADMIN_PASSWORD")
+    if not admin_password:
+        admin_password = f"TalentAI_Secured_{secrets.token_urlsafe(16)}"
     
     hashed = AuthUtils.get_password_hash(admin_password)
     user = User(
@@ -127,4 +130,4 @@ def seed_admin_user(
     db.add(user)
     db.commit()
     
-    return {"message": "Admin user created successfully", "email": admin_email, "password": admin_password}
+    return {"message": "Admin user created successfully", "email": admin_email}

@@ -63,19 +63,36 @@ def on_startup():
         pass
 
     try:
+        import logging
+        import secrets
         from core.auth import AuthUtils
+        from core.config import settings
         from models.all_models import User, UserRole
+        logger = logging.getLogger("talentai.startup")
+
         db = SessionLocal()
-        admin = db.query(User).filter(User.email == "admin@recruit.ai").first()
+        admin_email = getattr(settings, "ADMIN_EMAIL", "admin@recruit.ai")
+        admin = db.query(User).filter(User.email == admin_email).first()
         if not admin:
-            admin = User(
-                email="admin@recruit.ai",
-                hashed_password=AuthUtils.get_password_hash("admin_password"),
-                role=UserRole.ADMIN.value,
-                is_active=True
-            )
-            db.add(admin)
-            db.commit()
+            admin_pw = getattr(settings, "ADMIN_PASSWORD", None) or os.getenv("ADMIN_PASSWORD")
+            is_prod = settings.ENVIRONMENT == "production" or os.getenv("RENDER") is not None
+            
+            if is_prod and not admin_pw:
+                logger.warning("Production startup: Admin account does not exist. Auto-seeding disabled. Set ADMIN_PASSWORD environment variable to provision admin.")
+            else:
+                if not admin_pw:
+                    admin_pw = f"TalentAI_Secured_{secrets.token_urlsafe(16)}"
+                    logger.info("Initialized new admin account with generated secure password.")
+
+                admin = User(
+                    email=admin_email,
+                    hashed_password=AuthUtils.get_password_hash(admin_pw),
+                    role=UserRole.ADMIN.value,
+                    is_active=True,
+                    organization_id="org_talentai_default"
+                )
+                db.add(admin)
+                db.commit()
         db.close()
     except Exception:
         pass
