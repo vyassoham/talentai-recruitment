@@ -65,6 +65,6 @@ check.py
 *.bat
 *.vbs
 data_indian_names.csv
-scripts/
+/scripts/
 
 
