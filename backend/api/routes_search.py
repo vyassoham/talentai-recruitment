@@ -269,6 +269,10 @@ async def search_candidates(
         )
     )
     
+    # Enforce multi-tenant organization isolation
+    if current_user.role != "ADMIN" and getattr(current_user, "organization_id", None):
+        candidate_query = candidate_query.filter(Candidate.organization_id == current_user.organization_id)
+    
     if job.min_experience_years is not None and job.min_experience_years > 0:
         inclusive_min = max(0.0, job.min_experience_years - 2.0)
         candidate_query = candidate_query.filter(
@@ -360,7 +364,8 @@ def submit_feedback(
         job_id=request.job_id,
         candidate_id=candidate_id,
         feedback_type=request.feedback_type,
-        comments=request.comments
+        comments=request.comments,
+        organization_id=getattr(current_user, "organization_id", None) or "org_talentai_default"
     )
     db.add(feedback)
     db.commit()
@@ -395,6 +400,11 @@ async def evaluate_single_candidate(
     candidate = db.get(Candidate, candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    # Enforce multi-tenant isolation
+    if current_user.role != "ADMIN" and candidate.organization_id and current_user.organization_id:
+        if candidate.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=404, detail="Candidate not found")
         
     c_dict = {
         "candidate_id": str(candidate.id),
@@ -455,9 +465,26 @@ def get_candidate_resume_preview(
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
         
+    # Enforce multi-tenant isolation
+    if current_user.role != "ADMIN" and candidate.organization_id and current_user.organization_id:
+        if candidate.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=404, detail="Candidate resume not found")
+        
     doc = db.query(CandidateDocument).filter(CandidateDocument.candidate_id == candidate_id).first()
     safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', candidate.name or f"Candidate_{candidate_id}")
     
+    # 0. Enterprise Cloud Storage Signed URL (S3 / GCS / Supabase)
+    from core.storage import get_storage_provider
+    from fastapi.responses import RedirectResponse
+    storage_provider = get_storage_provider()
+    if doc and doc.storage_key:
+        try:
+            signed_url = storage_provider.create_signed_url(doc.storage_key, expires_in=3600)
+            if signed_url:
+                return RedirectResponse(url=signed_url, status_code=307)
+        except Exception:
+            pass
+
     # 1. Check local storage disk
     storage_dirs = [
         os.path.join(os.path.dirname(__file__), "..", "storage"),

@@ -13,20 +13,40 @@ class UserRole(str, enum.Enum):
     ADMIN = "ADMIN"
     RECRUITER = "RECRUITER"
 
+class Organization(Base):
+    __tablename__ = "organizations"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+    # Relationships
+    users = relationship("User", back_populates="organization")
+    candidates = relationship("Candidate", back_populates="organization")
+    job_requirements = relationship("JobRequirement", back_populates="organization")
+    feedback = relationship("RecruiterFeedback", back_populates="organization")
+
 class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(String, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     role = Column(String, nullable=False, default=UserRole.RECRUITER.value)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=_utcnow)
 
+    organization = relationship("Organization", back_populates="users")
+
 class Candidate(Base):
     __tablename__ = "candidates"
 
     id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(String, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     name = Column(String, index=True)
     email = Column(String, unique=True, index=True, nullable=True)
     phone = Column(String, nullable=True)
@@ -62,6 +82,7 @@ class Candidate(Base):
     employments = relationship("Employment", back_populates="candidate", cascade="all, delete-orphan")
     demographics = relationship("CandidateDemographics", back_populates="candidate", uselist=False, cascade="all, delete-orphan")
     section_embeddings = relationship("CandidateSectionEmbedding", back_populates="candidate", cascade="all, delete-orphan")
+    organization = relationship("Organization", back_populates="candidates")
 
     __table_args__ = (
         Index(
@@ -206,6 +227,7 @@ class JobRequirement(Base):
     __tablename__ = "job_requirements"
 
     id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(String, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     title = Column(String)
     raw_description = Column(Text)
     mandatory_skills = Column(JSON) 
@@ -214,6 +236,7 @@ class JobRequirement(Base):
     location_requirements = Column(String)
     embedding = Column(Vector(1536))
     created_at = Column(DateTime, default=_utcnow)
+    organization = relationship("Organization", back_populates="job_requirements")
 
 class Ontology(Base):
     __tablename__ = "ontology"
@@ -263,11 +286,13 @@ class RecruiterFeedback(Base):
     __tablename__ = "recruiter_feedback"
 
     id = Column(Integer, primary_key=True, index=True)
+    organization_id = Column(String, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True, index=True)
     job_id = Column(Integer, ForeignKey("job_requirements.id"))
     candidate_id = Column(Integer, ForeignKey("candidates.id"))
     feedback_type = Column(String) 
     comments = Column(Text)
     timestamp = Column(DateTime, default=_utcnow)
+    organization = relationship("Organization", back_populates="feedback")
 
 class BackgroundJob(Base):
     __tablename__ = "background_jobs"

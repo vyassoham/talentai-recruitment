@@ -34,6 +34,10 @@ def parse_job(
             
         job = svc.process_raw_jd(actual_description)
         
+        # Enforce tenant ownership
+        job.organization_id = getattr(current_user, 'organization_id', None) or "org_talentai_default"
+        db.commit()
+        
         reqs = []
         for m in (job.mandatory_skills or []):
             reqs.append({"name": m.get("canonical_skill_name"), "type": "MANDATORY", "weight": 1.0})
@@ -81,6 +85,11 @@ def get_job_status(
             pass
 
     if job_req:
+        # Enforce multi-tenant isolation
+        if current_user.role != "ADMIN" and job_req.organization_id and current_user.organization_id:
+            if job_req.organization_id != current_user.organization_id:
+                raise HTTPException(status_code=404, detail="Job not found")
+
         reqs = []
         for m in (job_req.mandatory_skills or []):
             reqs.append({"name": m.get("canonical_skill_name"), "type": "MANDATORY", "weight": 1.0})
@@ -150,4 +159,3 @@ def retry_job(
     if not success:
         raise HTTPException(status_code=500, detail="Failed to enqueue retry")
     return {"status": "RETRY_ACCEPTED", "job_id": job_id}
-

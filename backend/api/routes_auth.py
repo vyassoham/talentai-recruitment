@@ -88,9 +88,11 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    org_id = user.organization_id or "org_talentai_default"
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = AuthUtils.create_access_token(
-        data={"sub": user.email, "role": user.role}, expires_delta=access_token_expires
+        data={"sub": user.email, "role": user.role, "org_id": org_id},
+        expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -116,7 +118,12 @@ def seed_admin_user(
     admin_password = "admin_password"
     
     hashed = AuthUtils.get_password_hash(admin_password)
-    user = User(email=admin_email, hashed_password=hashed, role=UserRole.ADMIN.value)
+    user = User(
+        email=admin_email, 
+        hashed_password=hashed, 
+        role=UserRole.ADMIN.value,
+        organization_id="org_talentai_default"
+    )
     db.add(user)
     db.commit()
     

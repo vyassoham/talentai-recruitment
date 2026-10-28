@@ -36,6 +36,16 @@ class StorageInterface(ABC):
         """Deletes the file"""
         pass
 
+    @abstractmethod
+    def create_signed_url(self, storage_key: str, expires_in: int = 3600) -> Optional[str]:
+        """Generates a secure temporary presigned download URL for authenticated enterprise clients."""
+        pass
+
+    @abstractmethod
+    def check_health(self) -> dict:
+        """Checks health and connectivity of storage backend."""
+        pass
+
 class LocalStorage(StorageInterface):
     """Local disk storage for MVP and development environments."""
     def __init__(self, base_dir: str = "storage"):
@@ -68,6 +78,21 @@ class LocalStorage(StorageInterface):
                 logger.error(f"Failed to delete local file {file_path}: {e}")
                 return False
         return False
+
+    def create_signed_url(self, storage_key: str, expires_in: int = 3600) -> Optional[str]:
+        # Local files are served through authenticated streaming proxy endpoint
+        return None
+
+    def check_health(self) -> dict:
+        exists = os.path.isdir(self.base_dir)
+        writable = os.access(self.base_dir, os.W_OK) if exists else False
+        return {
+            "provider": "LocalStorage",
+            "healthy": exists and writable,
+            "base_dir": self.base_dir,
+            "exists": exists,
+            "writable": writable
+        }
 
 class SupabaseStorage(StorageInterface):
     """Supabase Cloud Object Storage provider for 100% cloud persistent resumes."""
@@ -130,6 +155,47 @@ class SupabaseStorage(StorageInterface):
             logger.error(f"Supabase Storage delete failed for {storage_key}: {e}")
             return False
 
+    def create_signed_url(self, storage_key: str, expires_in: int = 3600) -> Optional[str]:
+        try:
+            url = f"{self.supabase_url}/storage/v1/object/sign/{self.bucket_name}/{storage_key}"
+            headers = {
+                "Authorization": f"Bearer {self.supabase_key}",
+                "apikey": self.supabase_key,
+                "Content-Type": "application/json"
+            }
+            resp = requests.post(url, headers=headers, json={"expiresIn": expires_in}, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                signed_path = data.get("signedURL")
+                if signed_path:
+                    return f"{self.supabase_url}/storage/v1{signed_path}"
+        except Exception as e:
+            logger.error(f"Failed to create signed URL for {storage_key}: {e}")
+        return None
+
+    def check_health(self) -> dict:
+        try:
+            url = f"{self.supabase_url}/storage/v1/bucket/{self.bucket_name}"
+            headers = {
+                "Authorization": f"Bearer {self.supabase_key}",
+                "apikey": self.supabase_key
+            }
+            resp = requests.get(url, headers=headers, timeout=10)
+            healthy = resp.status_code == 200
+            return {
+                "provider": "SupabaseStorage",
+                "healthy": healthy,
+                "status_code": resp.status_code,
+                "bucket": self.bucket_name,
+                "error": resp.text if not healthy else None
+            }
+        except Exception as e:
+            return {
+                "provider": "SupabaseStorage",
+                "healthy": False,
+                "error": str(e)
+            }
+
 class S3Storage(StorageInterface):
     """Amazon S3 Cloud Object Storage provider for enterprise production."""
     def __init__(self, bucket_name: Optional[str] = None, region: Optional[str] = None):
@@ -184,6 +250,42 @@ class S3Storage(StorageInterface):
             logger.error(f"Failed to delete S3 object {storage_key}: {e}")
             return False
 
+    def create_signed_url(self, storage_key: str, expires_in: int = 3600) -> Optional[str]:
+        if not self._s3_client:
+            return None
+        try:
+            return self._s3_client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": self.bucket_name, "Key": storage_key},
+                ExpiresIn=expires_in
+            )
+        except Exception as e:
+            logger.error(f"Failed to generate S3 presigned URL: {e}")
+            return None
+
+    def check_health(self) -> dict:
+        if not self._s3_client:
+            return {
+                "provider": "S3Storage",
+                "healthy": False,
+                "error": "S3 client not initialized or missing AWS credentials"
+            }
+        try:
+            self._s3_client.head_bucket(Bucket=self.bucket_name)
+            return {
+                "provider": "S3Storage",
+                "healthy": True,
+                "bucket": self.bucket_name,
+                "region": self.region
+            }
+        except Exception as e:
+            return {
+                "provider": "S3Storage",
+                "healthy": False,
+                "error": str(e),
+                "bucket": self.bucket_name
+            }
+
 class GCSStorage(StorageInterface):
     """Google Cloud Storage (GCS) provider for GCP deployments."""
     def __init__(self, bucket_name: Optional[str] = None):
@@ -233,6 +335,39 @@ class GCSStorage(StorageInterface):
         except Exception as e:
             logger.error(f"Failed to delete GCS object {storage_key}: {e}")
             return False
+
+    def create_signed_url(self, storage_key: str, expires_in: int = 3600) -> Optional[str]:
+        if not self._gcs_client:
+            return None
+        try:
+            bucket = self._gcs_client.bucket(self.bucket_name)
+            blob = bucket.blob(storage_key)
+            return blob.generate_signed_url(expiration=expires_in)
+        except Exception as e:
+            logger.error(f"Failed to generate GCS presigned URL: {e}")
+            return None
+
+    def check_health(self) -> dict:
+        if not self._gcs_client:
+            return {
+                "provider": "GCSStorage",
+                "healthy": False,
+                "error": "GCS client not initialized"
+            }
+        try:
+            bucket = self._gcs_client.bucket(self.bucket_name)
+            exists = bucket.exists()
+            return {
+                "provider": "GCSStorage",
+                "healthy": exists,
+                "bucket": self.bucket_name
+            }
+        except Exception as e:
+            return {
+                "provider": "GCSStorage",
+                "healthy": False,
+                "error": str(e)
+            }
 
 def get_storage_provider() -> StorageInterface:
     """Storage provider factory based on application configuration."""

@@ -133,6 +133,11 @@ def get_candidate_details(
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
         
+    # Enforce multi-tenant isolation
+    if current_user.role != "ADMIN" and candidate.organization_id and current_user.organization_id:
+        if candidate.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=404, detail="Candidate not found")
+        
     doc = candidate.documents[0] if candidate.documents else None
     raw_text = doc.raw_extracted_text if doc else ""
     sections = extract_candidate_sections(raw_text)
@@ -169,6 +174,11 @@ def delete_candidate(
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
         
+    # Enforce multi-tenant isolation
+    if current_user.role != "ADMIN" and candidate.organization_id and current_user.organization_id:
+        if candidate.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=404, detail="Candidate not found")
+            
     # Delete cascade should handle relations if configured, but let's be explicit for MVP
     db.query(CandidateSkill).filter(CandidateSkill.candidate_id == candidate_id).delete()
     db.query(Employment).filter(Employment.candidate_id == candidate_id).delete()

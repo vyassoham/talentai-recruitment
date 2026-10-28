@@ -70,6 +70,11 @@ def get_current_user(
                 raise credentials_exception
             if not user.is_active:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+            
+            # Ensure organization_id fallback if unset
+            if not getattr(user, 'organization_id', None):
+                user.organization_id = "org_talentai_default"
+
             return user
         except (jwt.ExpiredSignatureError, jwt.PyJWTError):
             raise credentials_exception
@@ -79,12 +84,19 @@ def get_current_user(
     if api_key and expected_key and api_key == expected_key:
         user = db.query(User).filter(User.email == "admin@recruit.ai").first()
         if user and user.is_active:
+            if not getattr(user, 'organization_id', None):
+                user.organization_id = "org_talentai_default"
             return user
         # In mock test environments where DB user table is mocked
-        return User(id=1, email="admin@recruit.ai", role="ADMIN", is_active=True)
+        return User(id=1, email="admin@recruit.ai", role="ADMIN", is_active=True, organization_id="org_talentai_default")
 
     # 3. Unauthenticated request without valid token or API key
     raise credentials_exception
+
+def get_current_tenant(current_user: User = Depends(get_current_user)) -> str:
+    """Extracts and enforces the tenant organization_id for multi-tenant isolation."""
+    org_id = getattr(current_user, "organization_id", None)
+    return org_id or "org_talentai_default"
 
 def require_role(required_role: str):
     def role_checker(current_user: User = Depends(get_current_user)):
@@ -95,8 +107,6 @@ def require_role(required_role: str):
             )
         return current_user
     return role_checker
-
-api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 def verify_api_key(api_key: Optional[str] = Security(api_key_header)) -> str:
     """
