@@ -23,13 +23,26 @@ def get_dei_analytics(
     """
     Calculates pass-through rates grouped by demographic categories to ensure 
     the AI and Eligibility engines are not exhibiting adverse impact (Four-Fifths rule).
+    Enforces multi-tenant isolation scoping.
     """
+    if job_id:
+        job = db.get(JobRequirement, job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        if getattr(current_user, "role", None) != "ADMIN" and getattr(job, "organization_id", None) and getattr(current_user, "organization_id", None):
+            if job.organization_id != current_user.organization_id:
+                raise HTTPException(status_code=404, detail="Job not found")
+
     # 1. Total applicants with demographics
     query = db.query(CandidateDemographics.gender, CandidateDemographics.race_ethnicity, func.count(CandidateDemographics.id))
     
     if job_id:
         query = query.join(EvaluationEvidence, CandidateDemographics.candidate_id == EvaluationEvidence.candidate_id)\
                      .filter(EvaluationEvidence.job_id == job_id)
+
+    if getattr(current_user, "role", None) != "ADMIN" and getattr(current_user, "organization_id", None):
+        query = query.join(Candidate, CandidateDemographics.candidate_id == Candidate.id)\
+                     .filter(Candidate.organization_id == current_user.organization_id)
                      
     base_stats = query.group_by(CandidateDemographics.gender, CandidateDemographics.race_ethnicity).all()
     
@@ -43,6 +56,10 @@ def get_dei_analytics(
      
     if job_id:
         pass_query = pass_query.filter(EvaluationEvidence.job_id == job_id)
+
+    if getattr(current_user, "role", None) != "ADMIN" and getattr(current_user, "organization_id", None):
+        pass_query = pass_query.join(Candidate, CandidateDemographics.candidate_id == Candidate.id)\
+                               .filter(Candidate.organization_id == current_user.organization_id)
         
     pass_stats = pass_query.group_by(CandidateDemographics.gender, CandidateDemographics.race_ethnicity).all()
     
@@ -81,8 +98,18 @@ def get_ai_cost_analytics(
     """
     Aggregates token consumption, estimated USD expenditure, and latencies
     tracked in the AIRegistry across all AI operations (CV Parsing, JD Parsing, Reranking, Embeddings).
+    Enforces tenant scoping so recruiters only see their organization's AI expenditures.
     """
-    records = db.query(AIRegistry).all()
+    if getattr(current_user, "role", None) != "ADMIN" and getattr(current_user, "organization_id", None):
+        cand_ids = [str(r[0]) for r in db.query(Candidate.id).filter(Candidate.organization_id == current_user.organization_id).all()]
+        job_ids = [str(r[0]) for r in db.query(JobRequirement.id).filter(JobRequirement.organization_id == current_user.organization_id).all()]
+        valid_ids = cand_ids + job_ids
+        if valid_ids:
+            records = db.query(AIRegistry).filter(AIRegistry.entity_id.in_(valid_ids)).all()
+        else:
+            records = []
+    else:
+        records = db.query(AIRegistry).all()
     
     breakdown_by_operation: Dict[str, Dict[str, Any]] = {}
     total_prompt_tokens = 0

@@ -114,10 +114,11 @@ class PassiveSourcer:
         return discovered
     
     @staticmethod
-    def ingest_discovered_candidates(candidates: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def ingest_discovered_candidates(candidates: List[Dict[str, Any]], organization_id: str = "org_talentai_default") -> Dict[str, Any]:
         """
         Takes a list of discovered candidates from passive sourcing and creates
         Candidate records in the database. Deduplicates by email or GitHub URL.
+        Enforces tenant organization assignment.
         """
         provider = get_ai_provider()
         created = 0
@@ -125,20 +126,24 @@ class PassiveSourcer:
         
         with SessionLocal() as db:
             for c in candidates:
-                # Deduplication check
+                # Deduplication check scoped by organization if provided
                 if c.get("email"):
-                    existing = db.query(Candidate).filter(Candidate.email == c["email"]).first()
-                    if existing:
+                    existing_q = db.query(Candidate).filter(Candidate.email == c["email"])
+                    if organization_id:
+                        existing_q = existing_q.filter(Candidate.organization_id == organization_id)
+                    if existing_q.first():
                         skipped += 1
                         continue
                 
                 # Check by name + source (rough dedup for sourceable candidates)
                 if c.get("name"):
-                    existing = db.query(Candidate).filter(
+                    existing_q = db.query(Candidate).filter(
                         Candidate.name == c["name"],
                         Candidate.source == c.get("source")
-                    ).first()
-                    if existing:
+                    )
+                    if organization_id:
+                        existing_q = existing_q.filter(Candidate.organization_id == organization_id)
+                    if existing_q.first():
                         skipped += 1
                         continue
                 
@@ -154,6 +159,7 @@ class PassiveSourcer:
                 embedding, _ = provider.generate_embeddings(bio_text)
                 
                 candidate = Candidate(
+                    organization_id=organization_id or "org_talentai_default",
                     name=c.get("name"),
                     email=c.get("email"),
                     location=c.get("location"),

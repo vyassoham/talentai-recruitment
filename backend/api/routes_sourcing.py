@@ -44,7 +44,8 @@ def source_from_github(
     )
     if not discovered:
         return {"status": "NO_RESULTS", "candidates_discovered": 0}
-    ingest_res = PassiveSourcer.ingest_discovered_candidates(discovered)
+    org_id = getattr(current_user, "organization_id", None) or "org_talentai_default"
+    ingest_res = PassiveSourcer.ingest_discovered_candidates(discovered, organization_id=org_id)
     return {
         "status": "SUCCESS",
         "candidates_discovered": len(discovered),
@@ -71,7 +72,8 @@ def source_from_stackoverflow(
     )
     if not discovered:
         return {"status": "NO_RESULTS", "candidates_discovered": 0}
-    ingest_res = PassiveSourcer.ingest_discovered_candidates(discovered)
+    org_id = getattr(current_user, "organization_id", None) or "org_talentai_default"
+    ingest_res = PassiveSourcer.ingest_discovered_candidates(discovered, organization_id=org_id)
     return {
         "status": "SUCCESS",
         "candidates_discovered": len(discovered),
@@ -89,7 +91,8 @@ def ingest_discovered(
     current_user: User = Depends(require_role("RECRUITER"))
 ):
     from services.enrichment.passive_sourcer import PassiveSourcer
-    result = PassiveSourcer.ingest_discovered_candidates(request.candidates)
+    org_id = getattr(current_user, "organization_id", None) or "org_talentai_default"
+    result = PassiveSourcer.ingest_discovered_candidates(request.candidates, organization_id=org_id)
     return result
 
 # ==================== Staleness & Refresh Endpoints ====================
@@ -102,10 +105,12 @@ def get_stale_profiles(
 ):
     """
     Returns candidates whose profiles are stale and need refreshing.
+    Enforces multi-tenant isolation scoping.
     """
     from services.enrichment.staleness_checker import get_stale_candidates
     
-    stale = get_stale_candidates(threshold_days=threshold_days, limit=limit)
+    org_id = getattr(current_user, "organization_id", None) if getattr(current_user, "role", None) != "ADMIN" else None
+    stale = get_stale_candidates(threshold_days=threshold_days, limit=limit, organization_id=org_id)
     return {"stale_profiles": stale, "total": len(stale)}
 
 @router.post("/sourcing/refresh-stale")
@@ -116,11 +121,12 @@ def trigger_stale_refresh(
 ):
     """
     Enqueues background jobs to re-enrich stale candidate profiles.
-    This refreshes their GitHub, StackOverflow, and Scholar data.
+    This refreshes their GitHub, StackOverflow, and Scholar data within tenant scope.
     """
     from services.enrichment.staleness_checker import refresh_stale_profiles
     
-    result = refresh_stale_profiles(threshold_days=threshold_days, limit=limit)
+    org_id = getattr(current_user, "organization_id", None) if getattr(current_user, "role", None) != "ADMIN" else None
+    result = refresh_stale_profiles(threshold_days=threshold_days, limit=limit, organization_id=org_id)
     return {"status": "REFRESH_INITIATED", **result}
 
 @router.post("/sourcing/enrich/{candidate_id}")
@@ -133,6 +139,7 @@ def trigger_manual_enrichment(
     """
     Manually triggers full enrichment for a specific candidate.
     Runs GitHub audit, StackOverflow check, Google Scholar check, and Design portfolio check.
+    Strictly verifies candidate belongs to the authenticated tenant.
     """
     from models.all_models import Candidate
     from core.queue import queue_client
@@ -141,6 +148,11 @@ def trigger_manual_enrichment(
     candidate = db.get(Candidate, candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    # Enforce multi-tenant isolation
+    if getattr(current_user, "role", None) != "ADMIN" and getattr(candidate, "organization_id", None) and getattr(current_user, "organization_id", None):
+        if candidate.organization_id != current_user.organization_id:
+            raise HTTPException(status_code=404, detail="Candidate not found")
     
     job_id = queue_client.enqueue(
         job_type="ENRICHMENT_FULL",

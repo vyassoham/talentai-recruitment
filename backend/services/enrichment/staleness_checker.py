@@ -1,6 +1,6 @@
 import datetime
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from sqlalchemy import or_
 from core.database import SessionLocal
 from models.all_models import Candidate
@@ -40,9 +40,14 @@ def calculate_staleness_score(candidate) -> float:
         return 1.0  # Very stale
 
 
-def get_stale_candidates(threshold_days: int = STALENESS_THRESHOLD_DAYS, limit: int = 50) -> List[Dict[str, Any]]:
+def get_stale_candidates(
+    threshold_days: int = STALENESS_THRESHOLD_DAYS, 
+    limit: int = 50,
+    organization_id: Optional[str] = None
+) -> List[Dict[str, Any]]:
     """
     Finds candidates whose profiles are stale (not enriched recently).
+    Enforces multi-tenant isolation by filtering on organization_id when provided.
     Returns a list of candidate info dicts sorted by staleness (most stale first).
     """
     cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=threshold_days)
@@ -53,9 +58,12 @@ def get_stale_candidates(threshold_days: int = STALENESS_THRESHOLD_DAYS, limit: 
                 Candidate.last_enriched_at == None,
                 Candidate.last_enriched_at < cutoff
             )
-        ).order_by(Candidate.updated_at.asc()).limit(limit)
+        )
         
-        stale_candidates = stale_query.all()
+        if organization_id:
+            stale_query = stale_query.filter(Candidate.organization_id == organization_id)
+            
+        stale_candidates = stale_query.order_by(Candidate.updated_at.asc()).limit(limit).all()
         
         results = []
         for c in stale_candidates:
@@ -72,15 +80,19 @@ def get_stale_candidates(threshold_days: int = STALENESS_THRESHOLD_DAYS, limit: 
         return results
 
 
-def refresh_stale_profiles(threshold_days: int = STALENESS_THRESHOLD_DAYS, limit: int = 20):
+def refresh_stale_profiles(
+    threshold_days: int = STALENESS_THRESHOLD_DAYS, 
+    limit: int = 20,
+    organization_id: Optional[str] = None
+):
     """
     Finds stale candidates and enqueues enrichment background jobs for each.
-    This is designed to be called by a scheduled cron or admin API.
+    Enforces tenant scoping via organization_id.
     """
     from core.queue import queue_client
     from services.enrichment.web_enrichment import run_full_enrichment
     
-    stale = get_stale_candidates(threshold_days=threshold_days, limit=limit)
+    stale = get_stale_candidates(threshold_days=threshold_days, limit=limit, organization_id=organization_id)
     
     enqueued = 0
     for candidate_info in stale:
@@ -97,20 +109,3 @@ def refresh_stale_profiles(threshold_days: int = STALENESS_THRESHOLD_DAYS, limit
         
     logger.info(f"Staleness refresh: found {len(stale)} stale profiles, enqueued {enqueued} for re-enrichment.")
     return {"stale_found": len(stale), "enqueued": enqueued}
-
-
-def update_all_staleness_scores():
-    """
-    Recalculates the staleness_score for all candidates.
-    Useful for dashboards and admin views.
-    """
-    with SessionLocal() as db:
-        candidates = db.query(Candidate).all()
-        updated = 0
-        for c in candidates:
-            score = calculate_staleness_score(c)
-            c.staleness_score = score
-            updated += 1
-        db.commit()
-        
-    return {"updated": updated}
