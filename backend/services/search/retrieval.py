@@ -273,6 +273,8 @@ class HybridRetrievalEngine:
         preferred_items = job.preferred_skills or []
         
         target_role = getattr(job, "target_role", None) or getattr(job, "title", None) or ""
+        if not isinstance(target_role, str):
+            target_role = ""
         role_tokens = [
             w.lower() for w in re.split(r'[\s/,-]+', target_role)
             if len(w) > 2 and w.lower() not in ["custom", "search", "with", "experienced", "engineer", "developer", "professional", "role", "senior", "lead", "architect"]
@@ -392,7 +394,7 @@ class HybridRetrievalEngine:
                 else:
                     res.experience_signal = max(0.0, c_exp / job.min_experience_years)
             else:
-                res.experience_signal = min(c_exp / 15.0, 1.0)
+                res.experience_signal = min(c_exp / 10.0, 1.0)
                 
             results.append(res)
             

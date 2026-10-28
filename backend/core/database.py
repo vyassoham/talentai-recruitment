@@ -8,6 +8,13 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL") or settings.DATABASE_URL
 
+# Normalize PostgreSQL scheme for SQLAlchemy dialect compatibility
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("postgresql+"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
 engine = create_engine(
     DATABASE_URL,
     pool_size=settings.DB_POOL_SIZE,
