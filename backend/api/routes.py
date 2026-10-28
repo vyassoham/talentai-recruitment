@@ -177,8 +177,8 @@ def delete_candidate(
     # Also delete recruiter feedback and evaluations
     from models.all_models import RecruiterFeedback
     db.query(RecruiterFeedback).filter(RecruiterFeedback.candidate_id == candidate_id).delete()
-    from sqlalchemy import text
-    db.execute(text(f"DELETE FROM evaluation_evidence WHERE candidate_id = {candidate_id}"))
+    from models.all_models import EvaluationEvidence
+    db.query(EvaluationEvidence).filter(EvaluationEvidence.candidate_id == candidate_id).delete()
     
     # Optional: Delete document from local storage (not deleting the DB record since it tracks hashes)
     doc = db.query(CandidateDocument).filter(CandidateDocument.candidate_id == candidate_id).first()

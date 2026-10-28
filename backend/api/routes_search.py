@@ -467,7 +467,10 @@ def get_candidate_resume_preview(
     ]
     if doc and doc.storage_key:
         for s_dir in storage_dirs:
-            potential_path = os.path.join(s_dir, doc.storage_key)
+            safe_key = os.path.basename(str(doc.storage_key).replace("\\", "/"))
+            potential_path = os.path.abspath(os.path.join(s_dir, safe_key))
+            if not potential_path.startswith(os.path.abspath(s_dir)):
+                continue
             if os.path.isfile(potential_path) and os.path.getsize(potential_path) > 0:
                 return FileResponse(
                     potential_path,

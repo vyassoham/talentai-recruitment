@@ -39,9 +39,25 @@ class DocumentValidator:
     @classmethod
     def validate(cls, file_obj: Union[BinaryIO, bytes], filename: str) -> Tuple[bool, str]:
         """
-        Validates file size, extension, magic byte MIME type, and scans for malware via ClamAV.
-        Returns: (is_valid, error_message)
+        Strict enterprise validation for uploaded candidate CV documents.
+        Enforces:
+        1. Non-empty filename & path traversal neutralization
+        2. Strict extension whitelist (.pdf, .docx, .doc, .txt)
+        3. Strict file size bounds (min 32 bytes, max configured MB)
+        4. Dangerous binary and script magic header rejection (ELF, PE/EXE, scripts)
+        5. Genuine magic byte matching for claimed extension (PDF %PDF-, DOCX PKzip)
+        6. ClamAV daemon antivirus stream scanning
         """
+        if not filename or not str(filename).strip():
+            return False, "Security Violation: Filename cannot be empty or missing."
+
+        # Path traversal neutralization
+        safe_filename = os.path.basename(str(filename).replace("\\", "/"))
+        ext = os.path.splitext(safe_filename)[1].lower()
+
+        if ext not in cls.ALLOWED_EXTENSIONS:
+            return False, f"Security Violation: File extension '{ext}' is not permitted. Only {', '.join(cls.ALLOWED_EXTENSIONS)} files are allowed."
+
         if isinstance(file_obj, bytes):
             content = file_obj
             size = len(content)
@@ -52,14 +68,44 @@ class DocumentValidator:
             content = file_obj.read()
             file_obj.seek(0)
 
-        # 1. Check File Size
+        # 1. Check File Size Bounds
         if size > cls.MAX_BYTES:
             return False, f"File size exceeds maximum allowed ({cls.MAX_FILE_SIZE_MB}MB)"
             
-        if size == 0:
-            return False, "File is empty (0 bytes)"
+        if size < 32:
+            return False, "File is too small or empty (minimum 32 bytes required for valid document headers)"
 
-        # 2. ClamAV Antivirus Scanning
+        # 2. Block Dangerous Executable / Script Magic Headers
+        dangerous_headers = [
+            (b"MZ", "Windows Executable / Dynamic Link Library (.exe, .dll)"),
+            (b"\x7fELF", "Linux Executable Binary (ELF)"),
+            (b"#!/", "Unix Shell Script"),
+            (b"<?php", "PHP Script"),
+            (b"<script", "HTML/JavaScript Payload"),
+            (b"\xca\xfe\xba\xbe", "Java Bytecode Class File"),
+            (b"\x50\x4b\x05\x06", "Corrupted or Empty Zip Container"),
+        ]
+        for magic_prefix, desc in dangerous_headers:
+            if content.startswith(magic_prefix) or (magic_prefix == b"<script" and b"<script" in content[:256].lower()):
+                return False, f"Security Violation: Uploaded file contains forbidden executable/script content ({desc})"
+
+        # 3. Magic Byte Verification for Claimed Extension
+        if ext == ".pdf":
+            if not content.startswith(b"%PDF-"):
+                return False, "Security Violation: File extension is .pdf but content does not start with valid PDF magic bytes (%PDF-)."
+        elif ext == ".docx":
+            if not content.startswith(b"PK\x03\x04"):
+                return False, "Security Violation: File extension is .docx but content does not match valid OpenXML PKzip container."
+        elif ext == ".doc":
+            if not content.startswith(b"\xd0\xcf\x11\xe0"):
+                return False, "Security Violation: File extension is .doc but content does not match valid OLE document container."
+        elif ext == ".txt":
+            try:
+                content[:1024].decode("utf-8")
+            except UnicodeDecodeError:
+                return False, "Security Violation: Plain text file contains invalid non-UTF8 binary data."
+
+        # 4. ClamAV Antivirus Scanning
         is_clean, threat = SecurityUtils.scan_file_for_malware(content)
         if not is_clean:
             return False, f"Security Violation: Malware detected ({threat})"

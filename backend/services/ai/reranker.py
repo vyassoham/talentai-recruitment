@@ -74,7 +74,8 @@ class AIReranker:
             safe_evidence = SecurityUtils.sanitize_for_llm(candidate.external_evidence, "external_evidence")
             enrichment_data = f"\n\n--- OPEN-WEB ENRICHMENT EVIDENCE ---\n{safe_evidence}\nNote: Consider this verified technical footprint strongly."
         
-        prompt = f"--- JOB REQUIREMENT ---\n{job_context}\n\n--- CANDIDATE CV ---\n{safe_cv}{enrichment_data}\n\nPlease evaluate the candidate."
+        safe_job = SecurityUtils.sanitize_for_llm(job_context, "job_requirement")
+        prompt = f"--- TARGET REQUIREMENTS ---\n{safe_job}\n\n--- CANDIDATE CV ---\n{safe_cv}{enrichment_data}\n\nPlease evaluate the candidate objectively against the requirements."
         
         try:
             start_time = time.time()
