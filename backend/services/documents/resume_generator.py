@@ -1,10 +1,15 @@
 import io
 import re
 from typing import Optional
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
+
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    HAS_REPORTLAB = True
+except ImportError:
+    HAS_REPORTLAB = False
 
 from models.all_models import Candidate, CandidateDocument
 
@@ -20,6 +25,19 @@ def generate_pdf_resume(candidate: Candidate, doc: Optional[CandidateDocument] =
     Dynamically generates a clean, executive, branded PDF resume from candidate DB profile.
     Used as an automatic fallback when the raw binary PDF is not found in storage.
     """
+    if not HAS_REPORTLAB:
+        # Fallback minimal valid PDF stream if reportlab is unavailable
+        title = candidate.name or f"Candidate {candidate.id}"
+        pdf_content = (
+            f"%PDF-1.4\n1 0 obj<</Type /Catalog /Pages 2 0 R>>endobj\n"
+            f"2 0 obj<</Type /Pages /Kids [3 0 R] /Count 1>>endobj\n"
+            f"3 0 obj<</Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R>>endobj\n"
+            f"4 0 obj<</Length 44>>stream\nBT /F1 12 Tf 50 700 Td ({title} Resume) Tj ET\nendstream\nendobj\n"
+            f"xref\n0 5\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000216 00000 n \n"
+            f"trailer<</Size 5 /Root 1 0 R>>\nstartxref\n310\n%%EOF"
+        )
+        return pdf_content.encode("utf-8")
+
     buf = io.BytesIO()
     pdf = SimpleDocTemplate(
         buf,

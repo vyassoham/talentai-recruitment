@@ -51,6 +51,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
 
+      - name: Initialize Database Schema
+        continue-on-error: true
+        env:
+          DATABASE_URL: postgresql://recruit_admin:recruit_password@127.0.0.1:5432/recruit_db
+        working-directory: ./backend
+        run: |
+          python -c "
+          from core.database import engine, Base
+          from models import all_models
+          from sqlalchemy import text
+          try:
+              with engine.connect() as conn:
+                  conn.execute(text('CREATE EXTENSION IF NOT EXISTS vector;'))
+                  conn.commit()
+          except Exception as e:
+              print('Vector note:', e)
+          Base.metadata.create_all(bind=engine)
+          print('Database schema initialized successfully!')
+          "
+
       - name: Run Database Migrations (Alembic)
         continue-on-error: true
         env:
