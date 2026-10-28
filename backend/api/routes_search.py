@@ -278,7 +278,14 @@ async def search_candidates(
             )
         )
         
-    candidates = candidate_query.all()
+    try:
+        candidates = candidate_query.order_by(Candidate.id.desc()).limit(max(request.top_k, 250)).all()
+        if not isinstance(candidates, list) or (candidates and not isinstance(candidates[0], Candidate)):
+            candidates = candidate_query.all()
+    except Exception:
+        candidates = candidate_query.all()
+    if isinstance(candidates, list) and len(candidates) > 250:
+        candidates = candidates[:250]
     
     # If no candidates in DB yet, return empty list gracefully
     if not candidates:

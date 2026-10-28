@@ -1,3 +1,4 @@
+import os
 import re
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session, selectinload
@@ -157,7 +158,8 @@ class RetrievalResult:
                             break
 
         # Guaranteed resume preview link (works for local files, cloud files, and auto-synthesized PDFs)
-        resume_url = f"http://127.0.0.1:8000/api/v1/candidates/{self.candidate.id}/resume"
+        backend_host = os.getenv("BACKEND_PUBLIC_URL", "https://talentai-recruitment.onrender.com").rstrip("/")
+        resume_url = f"{backend_host}/api/v1/candidates/{self.candidate.id}/resume"
 
         # Full extracted skills inventory
         cand_skills = []
