@@ -38,12 +38,12 @@ app.add_middleware(
 
 # Register API Routers
 app.include_router(root_router, prefix="/api/v1")
+app.include_router(count_router, prefix="/api/v1")
 app.include_router(cv_router, prefix="/api/v1")
 app.include_router(jobs_router, prefix="/api/v1")
 app.include_router(search_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(sourcing_router, prefix="/api/v1")
-app.include_router(count_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 
 @app.on_event("startup")
