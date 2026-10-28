@@ -77,9 +77,9 @@ jobs:
           DATABASE_URL: postgresql://recruit_admin:recruit_password@127.0.0.1:5432/recruit_db
         working-directory: ./backend
         run: |
-          alembic upgrade head || true
+          alembic stamp head || true
 
-      - name: Run Pytest Suite with Quality Gates
+      - name: Run Pytest Test Suite
         env:
           DATABASE_URL: postgresql://recruit_admin:recruit_password@127.0.0.1:5432/recruit_db
           AI_PROVIDER: mock
@@ -87,3 +87,12 @@ jobs:
         working-directory: ./backend
         run: |
           pytest tests -v --tb=short
+
+      - name: Run NDCG Ranking Quality Gate Evaluation
+        env:
+          DATABASE_URL: postgresql://recruit_admin:recruit_password@127.0.0.1:5432/recruit_db
+          AI_PROVIDER: mock
+          PYTHONPATH: ${{ github.workspace }}/backend
+        working-directory: ./backend
+        run: |
+          python scripts/evaluate_ranking.py
