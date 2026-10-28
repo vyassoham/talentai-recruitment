@@ -13,6 +13,10 @@ from scripts.evaluate_ranking import setup_test_db, ndcg_at_k
 # Ensure test DB operates cleanly
 @pytest.fixture(scope="module")
 def eval_db():
+    db_url = str(engine.url)
+    if "supabase" in db_url.lower() and not os.getenv("ALLOW_PRODUCTION_DB_WIPE"):
+        pytest.skip("Skipping destructive ranking evaluation on production Supabase database. Runs safely in CI container.")
+
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     

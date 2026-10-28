@@ -55,4 +55,16 @@ android/local.properties
 android/app/build/
 android/.gradle/
 .gradle/
+test_*.py
+scratch_*.py
+fix_*.py
+manual_*.py
+populate_*.py
+monitor_ingestion.py
+check.py
+*.bat
+*.vbs
+data_indian_names.csv
+scripts/
+
 

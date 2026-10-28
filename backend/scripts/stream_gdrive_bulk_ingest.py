@@ -38,27 +38,50 @@ logger = logging.getLogger('BulkIngest')
 
 _OFFLINE_PROVIDER = MockProvider()
 
-def clean_candidate_name(raw_name: str, filename: str) -> str:
-    name = (raw_name or '').strip()
-    # Strip emails and phone numbers attached to names
-    name = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '', name)
-    name = re.sub(r'\+?\d[\d\s-]{8,15}\d', '', name)
-    name = re.sub(r'[^a-zA-Z\s\.]', ' ', name).strip()
-    words = name.split()
-    if 2 <= len(words) <= 4 and not any(kw in name.lower() for kw in ['resume', 'curriculum', 'cv', 'developer', 'engineer', 'architect', 'profile']):
-        return ' '.join(w.capitalize() for w in words)
-        
-    fn = os.path.splitext(filename)[0]
-    fn = re.sub(r'[^a-zA-Z\s]', ' ', fn).strip()
-    fn_words = [w for w in fn.split() if w.lower() not in [
-        'resume', 'cv', 'curriculum', 'updated', 'latest', 'years', 'developer', 
-        'engineer', 'new', 'final', 'doc', 'pdf', 'profile', 'tech', 'lead',
-        'senior', 'fresher', 'experience', 'yr', 'yrs'
-    ]]
-    if 2 <= len(fn_words) <= 4:
-        return ' '.join(w.capitalize() for w in fn_words)
-    elif fn_words:
-        return fn_words[0].capitalize()
+SKIP_WORDS = {
+    'resume', 'cv', 'curriculum', 'vitae', 'profile', 'summary', 'professional',
+    'contact', 'details', 'address', 'education', 'skills', 'experience', 'objective',
+    'policy', 'deposit', 'receipt', 'certificate', 'invoice', 'statement', 'salary', 'slip',
+    'qualifications', 'career', 'overview', 'page', 'declaration', 'letter', 'date'
+}
+
+def is_uuid_or_hash(fn: str) -> bool:
+    base = os.path.splitext(fn)[0]
+    cleaned = re.sub(r'[^0-9a-fA-F]', '', base)
+    return len(cleaned) >= 20 and len(cleaned) / max(len(base), 1) > 0.65
+
+def clean_candidate_name(raw_name: str, filename: str, raw_text: str = '') -> str:
+    # 1. First attempt: Top 8 lines of resume text
+    if raw_text:
+        lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
+        for line in lines[:8]:
+            l_sub = re.sub(r'^(name\s*of\s*the\s*life\s*assured\s*:|life\s*assured\s*:|name\s*:|full\s*name\s*:|candidate\s*name\s*:)', '', line, flags=re.I).strip()
+            l_clean = re.sub(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', '', l_sub)
+            l_clean = re.sub(r'\+?\d[\d\s-]{8,15}\d', '', l_clean)
+            l_clean = re.sub(r'[^a-zA-Z\s]', ' ', l_clean).strip()
+            has_skip = any(w.lower() in SKIP_WORDS for w in l_clean.split())
+            if has_skip and not any(re.search(r'\b(name|assured)\b', line, re.I) for _ in [0]):
+                continue
+            words = [w for w in l_clean.split() if w.lower() not in SKIP_WORDS]
+            if 2 <= len(words) <= 4 and all(len(w) >= 2 for w in words):
+                return ' '.join(w.capitalize() for w in words)
+
+    # 2. Second attempt: Filename (if not a UUID/hash)
+    if not is_uuid_or_hash(filename):
+        fn = os.path.splitext(filename)[0]
+        if fn.lower().endswith('.docx'):
+            fn = fn[:-5]
+        fn_clean = re.sub(r'[^a-zA-Z\s]', ' ', fn).strip()
+        words = [w for w in fn_clean.split() if w.lower() not in SKIP_WORDS and w.lower() not in [
+            'updated', 'latest', 'years', 'developer', 'engineer', 'new', 'final', 'doc', 'pdf',
+            'tech', 'lead', 'senior', 'fresher', 'experience', 'yr', 'yrs', 'android', 'ios',
+            'python', 'java', 'dev', 'ml', 'qa', 'fullstack', 'frontend', 'backend', 'data'
+        ]]
+        if 2 <= len(words) <= 3 and all(len(w) >= 2 for w in words):
+            return ' '.join(w.capitalize() for w in words)
+        elif words:
+            return ' '.join(w.capitalize() for w in words[:2])
+
     return 'Candidate Profile'
 
 def process_single_file(file_info):
@@ -93,7 +116,7 @@ def process_single_file(file_info):
             return ('EMPTY_TEXT', fname)
             
         profile = extract_profile_fast(raw_text, fname)
-        candidate_name = clean_candidate_name(profile['name'], fname)
+        candidate_name = clean_candidate_name(profile['name'], fname, raw_text)
         
         with SessionLocal() as db:
             cand = Candidate(
@@ -124,11 +147,22 @@ def process_single_file(file_info):
             gender = GenderDetector.detect(name=candidate_name, cv_text=raw_text[:2000], provider=_OFFLINE_PROVIDER)
             demo = CandidateDemographics(candidate_id=cand.id, gender=gender)
             db.add(demo)
-            
+
+            # Save raw binary PDF to storage for instant local viewing
+            storage_dir = os.path.join(backend_dir, "storage")
+            os.makedirs(storage_dir, exist_ok=True)
+            pdf_path = os.path.join(storage_dir, f"{file_hash}.pdf")
+            if not os.path.exists(pdf_path):
+                try:
+                    with open(pdf_path, "wb") as pf:
+                        pf.write(content)
+                except Exception:
+                    pass
+
             doc = CandidateDocument(
                 candidate_id=cand.id,
                 original_filename=fname,
-                storage_key=f"gdrive://{fid}/{fname}",
+                storage_key=f"{file_hash}.pdf",
                 mime_type='application/pdf',
                 file_size=len(content),
                 sha256_hash=file_hash,
@@ -156,7 +190,7 @@ def process_single_file(file_info):
     except Exception as e:
         return ('ERROR', str(e))
 
-def run_bulk_stream(max_workers=10):
+def run_bulk_stream(max_workers=14):
     log_path = r"C:\Users\dell\.gemini\antigravity\brain\db9911ae-e671-413c-95f9-5d67374ba351\.system_generated\tasks\task-2837.log"
     if not os.path.exists(log_path):
         logger.error(f"Task log not found at {log_path}")
@@ -170,7 +204,7 @@ def run_bulk_stream(max_workers=10):
                 files.append((m.group(1), m.group(2).strip()))
 
     total = len(files)
-    logger.info(f"=== Starting Bulk Stream Ingestion for {total} Candidates ===")
+    logger.info(f"=== Starting Fresh Bulk Stream Ingestion for {total} Candidates ===")
     
     ingested = 0
     skipped = 0
@@ -191,10 +225,12 @@ def run_bulk_stream(max_workers=10):
             except Exception:
                 failed += 1
                 
-            if idx % 20 == 0 or idx == total:
+            if idx % 25 == 0 or idx == total:
                 elapsed = time.time() - t0
                 rate = idx / elapsed if elapsed > 0 else 0
-                logger.info(f"[{idx}/{total}] Ingested: {ingested} | Skipped: {skipped} | Failed: {failed} | Speed: {rate:.1f} resumes/s")
+                pct = (idx / total) * 100
+                logger.info(f"[{idx}/{total} - {pct:.1f}%] Ingested: {ingested} | Skipped: {skipped} | Failed: {failed} | Speed: {rate:.1f} resumes/s")
+                sys.stdout.flush()
                 
     logger.info(f"=== COMPLETED: {ingested} Ingested, {skipped} Skipped, {failed} Failed in {time.time()-t0:.1f}s ===")
 
