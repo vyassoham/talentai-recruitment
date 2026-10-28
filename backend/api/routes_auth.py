@@ -1,5 +1,7 @@
+import json
+import urllib.parse
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -21,16 +23,65 @@ class SeedAdminResponse(BaseModel):
     password: str
 
 @router.post("/token", response_model=Token)
-def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(), 
+async def login_for_access_token(
+    request: Request,
     db: Session = Depends(get_db),
-    _rate_check = Depends(rate_limit(max_requests=10, window_seconds=60))
+    _rate_check = Depends(rate_limit(max_requests=20, window_seconds=60))
 ):
     """
-    OAuth2 Password exchange endpoint protected with brute-force rate limiting.
+    Robust OAuth2 Password exchange endpoint.
+    Accepts:
+    1. Standard form-urlencoded OAuth2 username & password
+    2. JSON payload {"username": "...", "password": "..."} or {"email": "...", "password": "..."}
+    3. URL-encoded payload sent with application/json header (recovers legacy web bundles)
     """
-    user = db.query(User).filter(User.email == form_data.username).first()
-    if not user or not AuthUtils.verify_password(form_data.password, user.hashed_password):
+    username = None
+    password = None
+
+    raw_body = await request.body()
+    raw_text = raw_body.decode("utf-8", errors="ignore").strip()
+
+    # 1. Try JSON parsing
+    if raw_text.startswith("{") and raw_text.endswith("}"):
+        try:
+            body_json = json.loads(raw_text)
+            if isinstance(body_json, dict):
+                username = body_json.get("username") or body_json.get("email")
+                password = body_json.get("password")
+        except Exception:
+            pass
+
+    # 2. Try URL-encoded / Form parsing
+    if not username or not password:
+        try:
+            parsed = urllib.parse.parse_qs(raw_text)
+            if "username" in parsed and parsed["username"]:
+                username = parsed["username"][0]
+            elif "email" in parsed and parsed["email"]:
+                username = parsed["email"][0]
+            if "password" in parsed and parsed["password"]:
+                password = parsed["password"][0]
+        except Exception:
+            pass
+
+    # 3. Fallback to standard FastAPI request.form()
+    if not username or not password:
+        try:
+            form = await request.form()
+            username = form.get("username") or form.get("email")
+            password = form.get("password")
+        except Exception:
+            pass
+
+    if not username or not password:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Missing username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = db.query(User).filter(User.email == username).first()
+    if not user or not AuthUtils.verify_password(password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
