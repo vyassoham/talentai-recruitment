@@ -164,7 +164,14 @@ class GeminiProvider(AIProvider):
         try:
             resp = requests.post(url, json=payload, timeout=30)
             if resp.status_code == 429:
-                raise AIProviderError("Gemini Embedding Rate Limit", retryable=True)
+                err_msg = "Gemini Embedding Rate Limit"
+                try:
+                    err_json = resp.json()
+                    err_msg = err_json.get("error", {}).get("message", resp.text)
+                except Exception:
+                    pass
+                is_daily = "per day" in err_msg.lower() or "free_tier_requests" in err_msg.lower()
+                raise AIProviderError(f"Gemini Embedding Rate Limit: {err_msg}", retryable=not is_daily)
             elif resp.status_code != 200:
                 raise AIProviderError(f"Gemini Embedding Error ({resp.status_code}): {resp.text}", retryable=False)
 

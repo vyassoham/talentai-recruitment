@@ -73,8 +73,7 @@ class CandidateEmbeddingPopulator:
         print("-" * 70)
 
         query = self.db.query(Candidate.id).filter(
-            Candidate.embedding.is_(None),
-            Candidate.id > self.progress["last_processed_candidate_id"]
+            Candidate.embedding.is_(None)
         ).order_by(Candidate.id.asc())
 
         if limit:
@@ -103,28 +102,47 @@ class CandidateEmbeddingPopulator:
                 while retry_attempts > 0 and not success:
                     try:
                         EmbeddingsService.generate_candidate_embedding(self.db, cid, self.provider)
-                        success = True
-                        success_count += 1
-                        print(f"  [EMBEDDED ID {cid:<5}] Global + Section Vectors Generated & Persisted.")
+                        cand = self.db.get(Candidate, cid)
+                        if cand and cand.embedding:
+                            success = True
+                            success_count += 1
+                            self.progress["last_processed_candidate_id"] = cid
+                            self.progress["total_embeddings_generated"] += 1
+                            print(f"  [EMBEDDED ID {cid:<5}] Global + Section Vectors Generated & Persisted.")
+                        else:
+                            raise ValueError(f"Candidate {cid} embedding not set")
                     except Exception as e:
                         try:
                             self.db.rollback()
                         except Exception:
                             pass
                         err_str = str(e)
-                        if "429" in err_str or "quota" in err_str.lower():
+                        if "per day" in err_str.lower() or "free_tier_requests" in err_str.lower() or "daily" in err_str.lower():
+                            print("\n" + "!" * 70)
+                            print("[FATAL QUOTA LIMIT] Free Tier Daily Embeddings Quota Exceeded!")
+                            print(f"Details: {err_str}")
+                            print("!" * 70)
+                            print("To resume: Enable Pay-As-You-Go billing on Google AI Studio or await daily UTC reset.")
+                            self._save_progress()
+                            return {
+                                "total_candidates": total_cands,
+                                "processed_in_run": processed_count,
+                                "successful_in_run": success_count,
+                                "quota_exceeded": True,
+                                "error": err_str
+                            }
+                        elif "429" in err_str or "quota" in err_str.lower() or "rate limit" in err_str.lower():
                             print(f"  [QUOTA WARNING] Gemini 429 on ID {cid}, backing off {backoff:.1f}s...")
                             time.sleep(backoff)
                             backoff *= 2
                             retry_attempts -= 1
                         else:
                             print(f"  [ERROR ID {cid}]: {e}")
-                            self.progress["failed_candidate_ids"].append(cid)
+                            if cid not in self.progress["failed_candidate_ids"]:
+                                self.progress["failed_candidate_ids"].append(cid)
                             break
                 
                 processed_count += 1
-                self.progress["last_processed_candidate_id"] = cid
-                self.progress["total_embeddings_generated"] += 1 if success else 0
                 self._save_progress()
                 self.db.expire_all()
                 time.sleep(delay_sec)
@@ -187,7 +205,10 @@ def main():
     populator = CandidateEmbeddingPopulator(progress_file)
 
     if not args.validate_only:
-        populator.populate(limit=args.limit, batch_size=args.batch_size, delay_sec=args.delay)
+        res = populator.populate(limit=args.limit, batch_size=args.batch_size, delay_sec=args.delay)
+        if res.get("quota_exceeded"):
+            populator.close()
+            return
 
     populator.validate_vector_search()
     populator.close()

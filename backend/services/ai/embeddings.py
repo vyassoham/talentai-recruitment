@@ -118,6 +118,9 @@ class EmbeddingsService:
                 vector = emb_res
                 usage = {}
 
+            if not vector:
+                raise ValueError("Empty vector returned from provider")
+
             candidate.embedding = list(vector) if isinstance(vector, (list, tuple)) else vector
             
             # Audit telemetry
@@ -132,6 +135,7 @@ class EmbeddingsService:
             db.add(registry)
         except Exception as e:
             logger.warning(f"Failed generating global candidate embedding: {e}")
+            raise
 
         # -------------------------------------------------------------
         # 2. Multi-Vector Chunked Section Embeddings
