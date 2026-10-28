@@ -107,6 +107,10 @@ class CandidateEmbeddingPopulator:
                         success_count += 1
                         print(f"  [EMBEDDED ID {cid:<5}] Global + Section Vectors Generated & Persisted.")
                     except Exception as e:
+                        try:
+                            self.db.rollback()
+                        except Exception:
+                            pass
                         err_str = str(e)
                         if "429" in err_str or "quota" in err_str.lower():
                             print(f"  [QUOTA WARNING] Gemini 429 on ID {cid}, backing off {backoff:.1f}s...")
@@ -122,6 +126,7 @@ class CandidateEmbeddingPopulator:
                 self.progress["last_processed_candidate_id"] = cid
                 self.progress["total_embeddings_generated"] += 1 if success else 0
                 self._save_progress()
+                self.db.expire_all()
                 time.sleep(delay_sec)
 
         print("-" * 70)
