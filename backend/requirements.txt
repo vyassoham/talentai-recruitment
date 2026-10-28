@@ -5,6 +5,8 @@ requests
 sqlalchemy
 psycopg2-binary
 psycopg[binary]>=3.1.18
+alembic
+httpx
 pgvector
 pydantic
 pydantic-settings

@@ -56,6 +56,11 @@ jobs:
           DATABASE_URL: postgresql://recruit_admin:recruit_password@localhost:5432/recruit_db
         working-directory: ./backend
         run: |
+          for i in {1..30}; do
+            python -c "import psycopg2; psycopg2.connect('postgresql://recruit_admin:recruit_password@localhost:5432/recruit_db')" 2>/dev/null && break
+            echo "Waiting for postgres..."
+            sleep 1
+          done
           alembic upgrade head
 
       - name: Run Pytest Suite with Quality Gates
