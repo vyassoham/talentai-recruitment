@@ -56,6 +56,7 @@ android/app/build/
 android/.gradle/
 .gradle/
 test_*.py
+!backend/tests/test_*.py
 scratch_*.py
 fix_*.py
 manual_*.py
