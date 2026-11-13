@@ -57,15 +57,17 @@ android/.gradle/
 .gradle/
 test_*.py
 !backend/tests/test_*.py
+!scripts/adhoc_tests/test_*.py
 scratch_*.py
 fix_*.py
+!scripts/db/fix_*.py
 manual_*.py
 populate_*.py
 monitor_ingestion.py
 check.py
 *.bat
+!Start_TalentAI.bat
 *.vbs
 data_indian_names.csv
-/scripts/
 
 
