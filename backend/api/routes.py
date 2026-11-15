@@ -144,6 +144,15 @@ def get_candidate_details(
     
     cand_skills = [{"name": s.original_extracted_skill} for s in candidate.skills if s.original_extracted_skill]
     
+    section_embeddings = [
+        {
+            "section_type": se.section_type,
+            "section_title": se.section_title,
+            "content_chunk": se.content_chunk
+        }
+        for se in (candidate.section_embeddings or [])
+    ]
+
     return {
         "candidate_id": str(candidate.id),
         "name": candidate.name,
@@ -159,6 +168,7 @@ def get_candidate_details(
         "summary": sections.get('summary', ''),
         "education": sections.get('education', []),
         "work_history": sections.get('experience', []),
+        "section_embeddings": section_embeddings,
         "raw_text": raw_text[:4000] if raw_text else None
     }
 

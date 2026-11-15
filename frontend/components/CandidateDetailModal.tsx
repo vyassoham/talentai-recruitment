@@ -17,7 +17,8 @@ import {
   ExternalLink,
   MapPin,
   CheckCircle2,
-  Award
+  Award,
+  Check
 } from "lucide-react";
 import { CandidateResult } from "../lib/types";
 import { api } from "../lib/api";
@@ -38,12 +39,15 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [copiedPhone, setCopiedPhone] = useState(false);
   const [cand, setCand] = useState<CandidateResult>(candidate || ({} as CandidateResult));
+  const [activeSectionIdx, setActiveSectionIdx] = useState(0);
+  const [copiedSection, setCopiedSection] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   useEffect(() => {
     if (candidate) {
       setCand(candidate);
+      setActiveSectionIdx(0);
       
       // Auto-fetch full profile if details like education/history are not yet loaded
       if (candidate.candidate_id) {
@@ -54,6 +58,9 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
               setCand((prev) => ({
                 ...prev,
                 ...fullData,
+                highlighted_section: prev.highlighted_section || fullData.highlighted_section,
+                matched_sections: prev.matched_sections || fullData.matched_sections,
+                section_embeddings: fullData.section_embeddings || prev.section_embeddings,
                 evaluations: prev.evaluations || fullData.evaluations,
                 match_reasons: prev.match_reasons || fullData.match_reasons,
                 final_score: prev.final_score !== undefined ? prev.final_score : fullData.final_score,
@@ -255,6 +262,110 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
               )}
             </div>
           </div>
+
+          {/* Multi-Vector Semantic Match Breakdown & Verbatim Evidence Card */}
+          {(() => {
+            const sectionsToDisplay = (cand.matched_sections && cand.matched_sections.length > 0)
+              ? cand.matched_sections
+              : (cand.section_embeddings && cand.section_embeddings.length > 0)
+                ? cand.section_embeddings
+                : (cand.highlighted_section ? [cand.highlighted_section] : []);
+
+            if (sectionsToDisplay.length === 0 || !sectionsToDisplay[0].content_chunk) return null;
+
+            const activeSec = sectionsToDisplay[Math.min(activeSectionIdx, sectionsToDisplay.length - 1)];
+
+            return (
+              <div className="p-4 rounded-xl bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-black/50 border border-purple-500/30 space-y-3.5 shadow-xl shadow-purple-950/20">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      <Sparkles className="w-4 h-4 text-purple-300" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-purple-200 flex items-center gap-1.5">
+                        Multi-Vector Match: Verbatim CV Section Evidence
+                      </h3>
+                      <p className="text-[11px] text-zinc-400">
+                        Exact candidate CV paragraph indexed in 1536-d pgvector space for ColBERT-style MaxSim retrieval.
+                      </p>
+                    </div>
+                  </div>
+
+                  {activeSec.similarity_score !== undefined && (
+                    <div className="px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-200 font-mono text-xs font-bold flex items-center gap-1.5 shadow-[0_0_12px_rgba(168,85,247,0.25)]">
+                      <span className="text-purple-300">Similarity:</span>
+                      <span className="text-emerald-300">{Math.round(activeSec.similarity_score * 100)}%</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section Selector Tabs if multiple sections available */}
+                {sectionsToDisplay.length > 1 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {sectionsToDisplay.map((sec, sIdx) => {
+                      const isActive = sIdx === Math.min(activeSectionIdx, sectionsToDisplay.length - 1);
+                      return (
+                        <button
+                          key={sIdx}
+                          onClick={() => setActiveSectionIdx(sIdx)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 border ${
+                            isActive
+                              ? "bg-purple-600 text-white border-purple-400 shadow-md shadow-purple-600/30 font-semibold"
+                              : "bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10 hover:text-white"
+                          }`}
+                        >
+                          <span className="uppercase text-[9px] font-mono tracking-wider opacity-80">
+                            {sec.section_type || "CHUNK"}:
+                          </span>
+                          <span className="truncate max-w-[150px]">{sec.section_title}</span>
+                          {sec.similarity_score !== undefined && (
+                            <span className="font-mono text-[10px] font-bold opacity-90">
+                              {Math.round(sec.similarity_score * 100)}%
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Verbatim CV Highlight Card */}
+                <div className="p-3.5 rounded-lg bg-black/60 border border-purple-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-purple-300 text-[11px] flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                      {activeSec.section_title}
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(activeSec.content_chunk);
+                        setCopiedSection(true);
+                        setTimeout(() => setCopiedSection(false), 2000);
+                      }}
+                      className="px-2.5 py-1 rounded bg-white/5 hover:bg-white/15 text-zinc-300 hover:text-white text-[10px] font-medium transition flex items-center gap-1 border border-white/5"
+                    >
+                      {copiedSection ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          <span className="text-emerald-400">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3 text-zinc-400" />
+                          <span>Copy Quote</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <blockquote className="border-l-2 border-purple-500 pl-3.5 py-1 font-mono text-[11.5px] leading-relaxed text-zinc-200 select-all whitespace-pre-wrap">
+                    "{activeSec.content_chunk}"
+                  </blockquote>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Key Technical Skills Inventory */}
           <div className="space-y-2">

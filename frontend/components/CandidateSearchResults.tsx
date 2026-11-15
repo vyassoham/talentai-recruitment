@@ -15,6 +15,8 @@ import {
   SlidersHorizontal,
   Bot,
   AlertCircle,
+  Copy,
+  Check,
 } from "lucide-react";
 import { CandidateResult, SearchResponse } from "../lib/types";
 import { api } from "../lib/api";
@@ -66,6 +68,10 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const resultsTableRef = useRef<HTMLDivElement>(null);
+
+  // Multi-Vector Section Highlighting State
+  const [activeSectionTabByCand, setActiveSectionTabByCand] = useState<Record<number, number>>({});
+  const [copiedSectionKey, setCopiedSectionKey] = useState<string | null>(null);
 
   // Post-search Filters
   const [filterExp, setFilterExp] = useState<string>("all");
@@ -557,6 +563,30 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
                             ))}
                           </div>
                         )}
+
+                        {/* Multi-Vector Highlight Preview */}
+                        {cand.highlighted_section && cand.highlighted_section.content_chunk && (
+                          <div className="mt-2.5 p-2 rounded-lg bg-purple-950/20 border border-purple-500/20 flex items-start gap-2 max-w-2xl">
+                            <div className="p-1 rounded bg-purple-500/20 text-purple-300 shrink-0 mt-0.5">
+                              <Sparkles className="w-3 h-3" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300">
+                                  Vector Match: {cand.highlighted_section.section_title}
+                                </span>
+                                {cand.highlighted_section.similarity_score !== undefined && (
+                                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-200 border border-purple-500/30">
+                                    {Math.round(cand.highlighted_section.similarity_score * 100)}% Match
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-zinc-300 text-[11px] leading-relaxed line-clamp-2 italic font-mono bg-black/25 px-2 py-1 rounded border border-white/5">
+                                "{cand.highlighted_section.content_chunk}"
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -600,6 +630,109 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
                   {/* Expanded Details Panel */}
                   {isExpanded && (
                     <div className="px-5 pb-5 pt-1 bg-transparent/50 border-t border-white/10/60 space-y-4 text-xs">
+                      {/* Multi-Vector Section Highlighting & Evidence */}
+                      {(() => {
+                        const sections = (cand.matched_sections && cand.matched_sections.length > 0)
+                          ? cand.matched_sections
+                          : (cand.highlighted_section ? [cand.highlighted_section] : []);
+                        
+                        if (sections.length === 0 || !sections[0].content_chunk) return null;
+
+                        const activeTabIdx = activeSectionTabByCand[cand.candidate_id] || 0;
+                        const currentSection = sections[Math.min(activeTabIdx, sections.length - 1)];
+
+                        return (
+                          <div className="p-4 rounded-xl bg-gradient-to-r from-purple-950/30 via-indigo-950/25 to-black/40 border border-purple-500/30 space-y-3 shadow-lg shadow-purple-950/20">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                  <Sparkles className="w-4 h-4 text-purple-300" />
+                                </div>
+                                <div>
+                                  <h5 className="text-xs font-bold uppercase tracking-wider text-purple-200 flex items-center gap-1.5">
+                                    Multi-Vector Match: Verbatim CV Section Evidence
+                                  </h5>
+                                  <p className="text-[11px] text-zinc-400">
+                                    ColBERT-style chunking identified this exact paragraph as the strongest semantic match for your query.
+                                  </p>
+                                </div>
+                              </div>
+
+                              {currentSection.similarity_score !== undefined && (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-200 font-mono text-xs font-bold">
+                                  <span>{Math.round(currentSection.similarity_score * 100)}%</span>
+                                  <span className="text-[10px] text-purple-300 font-normal">Vector Cosine Match</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Section Selector Tabs if more than 1 section */}
+                            {sections.length > 1 && (
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                {sections.map((sec, sIdx) => {
+                                  const isActive = sIdx === (activeSectionTabByCand[cand.candidate_id] || 0);
+                                  const typeLabel = sec.section_type || "SECTION";
+                                  return (
+                                    <button
+                                      key={sIdx}
+                                      onClick={() => setActiveSectionTabByCand(prev => ({ ...prev, [cand.candidate_id]: sIdx }))}
+                                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition flex items-center gap-1.5 border ${
+                                        isActive
+                                          ? "bg-purple-600 text-white border-purple-400 shadow-sm shadow-purple-500/30 font-semibold"
+                                          : "bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10 hover:text-white"
+                                      }`}
+                                    >
+                                      <span className="uppercase text-[9px] tracking-wide opacity-80">{typeLabel}:</span>
+                                      <span className="truncate max-w-[140px]">{sec.section_title}</span>
+                                      {sec.similarity_score !== undefined && (
+                                        <span className="font-mono text-[10px] opacity-90 font-bold">
+                                          {Math.round(sec.similarity_score * 100)}%
+                                        </span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* Verbatim Highlighted Section Box */}
+                            <div className="p-3.5 rounded-lg bg-black/50 border border-purple-500/30 space-y-2 relative group">
+                              <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                                <span className="font-semibold text-purple-300 flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                                  {currentSection.section_title}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(currentSection.content_chunk);
+                                    setCopiedSectionKey(`${cand.candidate_id}-${activeTabIdx}`);
+                                    setTimeout(() => setCopiedSectionKey(null), 2000);
+                                  }}
+                                  className="px-2 py-0.5 rounded bg-white/5 hover:bg-white/15 text-zinc-300 hover:text-white text-[10px] font-medium transition flex items-center gap-1"
+                                  title="Copy verbatim section snippet"
+                                >
+                                  {copiedSectionKey === `${cand.candidate_id}-${activeTabIdx}` ? (
+                                    <>
+                                      <Check className="w-3 h-3 text-emerald-400" />
+                                      <span className="text-emerald-400">Copied!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3 h-3 text-zinc-400" />
+                                      <span>Copy Snippet</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+
+                              <blockquote className="border-l-2 border-purple-500 pl-3 py-1 font-mono text-[11.5px] leading-relaxed text-zinc-200 select-all whitespace-pre-wrap">
+                                "{currentSection.content_chunk}"
+                              </blockquote>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       {/* Match Reasons */}
                       {cand.match_reasons && cand.match_reasons.length > 0 && (
                         <div className="space-y-1.5 pt-2">

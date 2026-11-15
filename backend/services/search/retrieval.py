@@ -110,6 +110,8 @@ class RetrievalResult:
         self.experience_signal = 0.0
         self.preferred_skill_signal = 0.0
         self.best_matching_section: Optional[str] = None
+        self.highlighted_section: Optional[Dict[str, Any]] = None
+        self.matched_sections: List[Dict[str, Any]] = []
         self.mandatory_count = 0
         self.mandatory_matched_count = 0
         
@@ -191,6 +193,8 @@ class RetrievalResult:
             "semantic_similarity": round(self.semantic_similarity, 4),
             "experience_signal": round(self.experience_signal, 4),
             "best_matching_section": self.best_matching_section,
+            "highlighted_section": self.highlighted_section,
+            "matched_sections": self.matched_sections,
             "matched_skills": self.matched_skills,
             "missing_preferred_skills": self.missing_preferred_skills,
             "eligibility_status": "ELIGIBLE" if self.eligibility.eligible else "INELIGIBLE"
@@ -292,6 +296,7 @@ class HybridRetrievalEngine:
         vector_distances = {}
         section_max_sims = {}
         best_matching_sections = {}
+        cand_matched_sections = {}
 
         if job_embedding:
             try:
@@ -314,7 +319,9 @@ class HybridRetrievalEngine:
                     section_dist_records = self.db.query(
                         CandidateSectionEmbedding.candidate_id,
                         CandidateSectionEmbedding.embedding.cosine_distance(job_embedding).label("distance"),
-                        CandidateSectionEmbedding.section_title
+                        CandidateSectionEmbedding.section_title,
+                        CandidateSectionEmbedding.section_type,
+                        CandidateSectionEmbedding.content_chunk
                     ).filter(
                         CandidateSectionEmbedding.candidate_id.in_(candidate_ids),
                         CandidateSectionEmbedding.embedding.isnot(None)
@@ -324,9 +331,24 @@ class HybridRetrievalEngine:
                         if s_rec.distance is not None:
                             s_sim = max(0.0, 1.0 - s_rec.distance)
                             cand_id = s_rec.candidate_id
+                            sec_item = {
+                                "section_title": s_rec.section_title or "Relevant Profile Section",
+                                "section_type": s_rec.section_type or "EXPERIENCE",
+                                "content_chunk": s_rec.content_chunk or "",
+                                "similarity_score": round(float(s_sim), 4)
+                            }
+                            if cand_id not in cand_matched_sections:
+                                cand_matched_sections[cand_id] = []
+                            cand_matched_sections[cand_id].append(sec_item)
+
                             if cand_id not in section_max_sims or s_sim > section_max_sims[cand_id]:
                                 section_max_sims[cand_id] = s_sim
                                 best_matching_sections[cand_id] = s_rec.section_title
+
+                    # Sort each candidate's matched sections by similarity_score desc and keep top 3
+                    for cand_id in cand_matched_sections:
+                        cand_matched_sections[cand_id].sort(key=lambda x: x["similarity_score"], reverse=True)
+                        cand_matched_sections[cand_id] = cand_matched_sections[cand_id][:3]
 
             except Exception:
                 # Fallback if DB doesn't support pgvector (e.g. mock DB in tests)
@@ -384,13 +406,37 @@ class HybridRetrievalEngine:
             sec_sim = section_max_sims.get(c.id, 0.0)
             base_vector_sim = max(global_sim, sec_sim)
             
-            if base_vector_sim > 0:
-                res.semantic_similarity = (base_vector_sim * 0.7) + (role_sim * 0.3)
+            c_sections = cand_matched_sections.get(c.id, [])
+            if c_sections:
+                res.matched_sections = c_sections
+                res.highlighted_section = c_sections[0]
+                res.best_matching_section = c_sections[0]["section_title"]
+            elif base_vector_sim > 0:
                 res.best_matching_section = best_matching_sections.get(c.id)
+                fallback_chunk = ""
+                if c.current_title:
+                    fallback_chunk = f"Current Position: {c.current_title}" + (f" at {c.current_company}" if c.current_company else "")
+                res.highlighted_section = {
+                    "section_title": best_matching_sections.get(c.id) or f"Job Title: {c.current_title or 'Profile'}",
+                    "section_type": "TITLE",
+                    "content_chunk": fallback_chunk,
+                    "similarity_score": round(float(base_vector_sim), 4)
+                }
+                res.matched_sections = [res.highlighted_section]
             else:
                 res.semantic_similarity = role_sim
                 if role_sim > 0:
                     res.best_matching_section = f"Job Title: {c.current_title}"
+                    res.highlighted_section = {
+                        "section_title": f"Job Title: {c.current_title}",
+                        "section_type": "TITLE",
+                        "content_chunk": f"Position: {c.current_title}" + (f" at {c.current_company}" if c.current_company else ""),
+                        "similarity_score": round(float(role_sim), 4)
+                    }
+                    res.matched_sections = [res.highlighted_section]
+
+            if base_vector_sim > 0:
+                res.semantic_similarity = (base_vector_sim * 0.7) + (role_sim * 0.3)
                 
             # --- 5. Experience Signal ---
             c_exp = c.total_experience_years or 0.0

@@ -159,4 +159,71 @@ def test_retrieval_result_contact_regex_efficiency():
     assert data2["email"] == "direct@domain.com"
     assert data2["phone"] == "+1-555-999-8888"
 
+def test_multi_vector_section_highlighting():
+    from models.all_models import CandidateSectionEmbedding
+    from services.search.retrieval import RetrievalResult
+    from services.search.eligibility import CandidateEligibilityResult
+
+    mock_db = MagicMock()
+    job = JobRequirement(
+        id=1,
+        embedding=[0.5, 0.5, 0.5],
+        mandatory_skills=[{"canonical_skill_name": "Python"}],
+        preferred_skills=[]
+    )
+    
+    cand = Candidate(
+        id=42,
+        name="Vector Specialist",
+        current_title="Principal Engineer",
+        current_company="AI Cloud Inc",
+        total_experience_years=7.0,
+        skills=[CandidateSkill(original_extracted_skill="Python")]
+    )
+
+    # Mock CandidateSectionEmbedding query result
+    mock_sec1 = MagicMock()
+    mock_sec1.candidate_id = 42
+    mock_sec1.distance = 0.15 # 0.85 similarity
+    mock_sec1.section_title = "Principal Engineer at AI Cloud Inc"
+    mock_sec1.section_type = "EXPERIENCE"
+    mock_sec1.content_chunk = "Led Python microservices architecture using pgvector, FastAPI and Kafka for high-scale search."
+
+    mock_sec2 = MagicMock()
+    mock_sec2.candidate_id = 42
+    mock_sec2.distance = 0.28 # 0.72 similarity
+    mock_sec2.section_title = "Core Technical Skills & Stack"
+    mock_sec2.section_type = "SKILLS"
+    mock_sec2.content_chunk = "Technical Skills & Tooling: Python, PostgreSQL, Kafka, Redis, Docker"
+
+    # Engine with mocked section records
+    HybridRetrievalEngine.notify_section_embeddings_created()
+    engine = HybridRetrievalEngine(mock_db)
+
+    # Configure query chain
+    mock_db.query.return_value.filter.return_value.all.side_effect = [
+        [], # RecruiterFeedback
+        [], # Global candidate dist_records
+        [mock_sec1, mock_sec2] # Section dist_records
+    ]
+
+    elig = [CandidateEligibilityResult(candidate_id=42, eligible=True, requirements=[])]
+    results = engine.retrieve(job, elig, top_k=5, candidates=[cand])
+
+    assert len(results) == 1
+    top_cand = results[0]
+    
+    # Verify highlighted_section is populated with highest similarity
+    assert top_cand["highlighted_section"] is not None
+    assert top_cand["highlighted_section"]["section_title"] == "Principal Engineer at AI Cloud Inc"
+    assert top_cand["highlighted_section"]["section_type"] == "EXPERIENCE"
+    assert "pgvector, FastAPI and Kafka" in top_cand["highlighted_section"]["content_chunk"]
+    assert top_cand["highlighted_section"]["similarity_score"] == 0.85
+
+    # Verify matched_sections list has both sections in descending similarity order
+    assert len(top_cand["matched_sections"]) == 2
+    assert top_cand["matched_sections"][0]["similarity_score"] >= top_cand["matched_sections"][1]["similarity_score"]
+    assert top_cand["matched_sections"][1]["section_type"] == "SKILLS"
+
+
 

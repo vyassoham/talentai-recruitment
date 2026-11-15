@@ -45,6 +45,13 @@ export interface EvaluationEvidenceItem {
   validation_status?: "VERIFIED" | "SUSPECTED_HALLUCINATION" | "UNVERIFIED";
 }
 
+export interface MatchedSection {
+  section_title: string;
+  section_type: "SKILLS" | "SUMMARY" | "EXPERIENCE" | "PROJECT" | "ENRICHMENT" | "TITLE" | string;
+  content_chunk: string;
+  similarity_score?: number;
+}
+
 export interface CandidateResult {
   candidate_id: number;
   name?: string;
@@ -67,6 +74,9 @@ export interface CandidateResult {
   social_links?: Record<string, string>;
   external_evidence?: string;
   best_matching_section?: string;
+  highlighted_section?: MatchedSection;
+  matched_sections?: MatchedSection[];
+  section_embeddings?: MatchedSection[];
   matched_skills?: string[];
   skills?: { name: string }[];
   education?: string[];
