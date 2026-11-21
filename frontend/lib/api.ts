@@ -256,6 +256,87 @@ class ApiClient {
     });
   }
 
+  async streamEvaluateCandidate(
+    candidateId: number,
+    jobId: string = "1",
+    callbacks: {
+      onStatus?: (message: string) => void;
+      onChunk?: (text: string) => void;
+      onComplete?: (result: any) => void;
+      onError?: (error: string) => void;
+    }
+  ): Promise<void> {
+    const token = this.getToken();
+    const headers: Record<string, string> = {
+      "X-API-Key": "dev-secret-api-key",
+      "Accept": "text/event-stream",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const url = `${this.baseUrl}/candidates/${candidateId}/evaluate/stream?job_id=${encodeURIComponent(jobId)}`;
+
+    try {
+      const response = await fetch(url, {
+        method: "GET",
+        headers,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `HTTP ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Streaming not supported by browser environment.");
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          if (trimmed === "data: [DONE]") {
+            return;
+          }
+          if (trimmed.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(trimmed.slice(6));
+              if (data.type === "status" && callbacks.onStatus) {
+                callbacks.onStatus(data.message);
+              } else if (data.type === "chunk" && callbacks.onChunk) {
+                callbacks.onChunk(data.text);
+              } else if (data.type === "complete" && callbacks.onComplete) {
+                callbacks.onComplete(data.result);
+              } else if (data.type === "error" && callbacks.onError) {
+                callbacks.onError(data.message);
+              }
+            } catch (parseErr) {
+              console.warn("Failed to parse SSE line:", trimmed, parseErr);
+            }
+          }
+        }
+      }
+    } catch (err: any) {
+      if (callbacks.onError) {
+        callbacks.onError(err.message || String(err));
+      } else {
+        throw err;
+      }
+    }
+  }
+
   async submitFeedback(candidateId: number, jobId: string, feedbackType: string, comments: string) {
     return this.request(`/candidates/${candidateId}/feedback`, {
       method: "POST",

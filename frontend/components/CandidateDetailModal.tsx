@@ -43,11 +43,19 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
   const [copiedSection, setCopiedSection] = useState(false);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [streamedReasoning, setStreamedReasoning] = useState("");
+  const [streamingStatus, setStreamingStatus] = useState("");
+  const [evalCompleted, setEvalCompleted] = useState(false);
+  const [streamError, setStreamError] = useState<string | null>(null);
 
   useEffect(() => {
     if (candidate) {
       setCand(candidate);
       setActiveSectionIdx(0);
+      setStreamedReasoning("");
+      setStreamingStatus("");
+      setEvalCompleted(false);
+      setStreamError(null);
       
       // Auto-fetch full profile if details like education/history are not yet loaded
       if (candidate.candidate_id) {
@@ -77,20 +85,40 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
 
   const handleDeepEvaluate = async () => {
     setIsEvaluating(true);
+    setStreamedReasoning("");
+    setStreamingStatus("Connecting to Gemini AI Engine...");
+    setStreamError(null);
+    setEvalCompleted(false);
+
     try {
-      const res = await api.evaluateCandidate(cand.candidate_id, "1");
-      if (res && res.ai_evaluation) {
-        setCand(prev => ({
-          ...prev,
-          ai_evaluation: res.ai_evaluation,
-          evaluations: res.evaluations || prev.evaluations,
-          composite_score: res.composite_score || prev.composite_score,
-          final_score: res.final_score || prev.final_score,
-          match_reasons: res.match_reasons || prev.match_reasons
-        }));
-      }
+      await api.streamEvaluateCandidate(cand.candidate_id, "1", {
+        onStatus: (status) => {
+          setStreamingStatus(status);
+        },
+        onChunk: (chunk) => {
+          setStreamedReasoning((prev) => prev + chunk);
+        },
+        onComplete: (res) => {
+          if (res && res.ai_evaluation) {
+            setCand((prev) => ({
+              ...prev,
+              ai_evaluation: res.ai_evaluation,
+              evaluations: res.evaluations || prev.evaluations,
+              composite_score: res.composite_score || prev.composite_score,
+              final_score: res.final_score || prev.final_score,
+              match_reasons: res.match_reasons || prev.match_reasons,
+            }));
+            setEvalCompleted(true);
+            setStreamingStatus("Evaluation Complete");
+          }
+        },
+        onError: (err) => {
+          console.error("Streaming evaluation error:", err);
+          setStreamError(err);
+        },
+      });
     } catch (err: any) {
-      alert(`Deep evaluation failed: ${err.message || err}`);
+      setStreamError(err.message || String(err));
     } finally {
       setIsEvaluating(false);
     }
@@ -177,23 +205,34 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
 
           {/* Contact Details & Action Banner (Highlighted prominently) */}
           <div className="p-4 bg-gradient-to-r from-purple-950/30 to-indigo-950/30 border border-purple-500/20 rounded-xl space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
                 <Mail className="w-3.5 h-3.5 text-purple-400" />
                 Contact & Communication
               </span>
-              {cand.resume_url && (
-                <a 
-                  href={cand.resume_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-md shadow-indigo-600/30"
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDeepEvaluate}
+                  disabled={isEvaluating}
+                  className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-md shadow-purple-600/30 disabled:opacity-50"
+                  title="Stream deep AI evaluation with Gemini 3.6 Flash"
                 >
-                  <FileText className="w-3.5 h-3.5" />
-                  View Original Resume
-                  <ExternalLink className="w-3 h-3 text-white/70" />
-                </a>
-              )}
+                  <Sparkles className={`w-3.5 h-3.5 ${isEvaluating ? 'animate-spin text-purple-200' : 'text-purple-300'}`} />
+                  {isEvaluating ? "Evaluating with Gemini..." : cand.ai_evaluation ? "Re-evaluate Profile" : "Deep AI Evaluate"}
+                </button>
+                {cand.resume_url && (
+                  <a 
+                    href={cand.resume_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-zinc-200 rounded-lg text-xs font-semibold border border-white/10 transition flex items-center gap-1.5"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    View Original Resume
+                    <ExternalLink className="w-3 h-3 text-white/70" />
+                  </a>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
@@ -262,6 +301,62 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
               )}
             </div>
           </div>
+
+          {/* Live AI Streaming Evaluation Card (Typewriter Effect) */}
+          {(isEvaluating || streamedReasoning || streamError) && (
+            <div className="p-4 rounded-xl bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-black/60 border border-purple-500/40 space-y-3 shadow-xl shadow-purple-950/20 animate-in fade-in duration-300">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    <Sparkles className={`w-4 h-4 ${isEvaluating ? 'animate-spin text-purple-300' : 'text-purple-200'}`} />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-purple-200 flex items-center gap-2">
+                      <span>Gemini 3.6 Flash Live Evaluation Stream</span>
+                      {isEvaluating && (
+                        <span className="flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                          STREAMING
+                        </span>
+                      )}
+                      {evalCompleted && (
+                        <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          ✓ COMPLETED
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-[11px] text-zinc-400">
+                      {streamingStatus || "Live SSE streaming token-by-token from Google Gemini"}
+                    </p>
+                  </div>
+                </div>
+
+                {cand.ai_evaluation?.hiring_verdict && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-purple-500/20 text-purple-200 border border-purple-500/40 shadow-[0_0_12px_rgba(168,85,247,0.3)]">
+                    {cand.ai_evaluation.hiring_verdict}
+                  </span>
+                )}
+              </div>
+
+              {/* Typewriter Stream Box */}
+              {streamedReasoning && (
+                <div className="p-3.5 rounded-lg bg-black/60 border border-purple-500/30 text-zinc-200 font-mono text-[11.5px] leading-relaxed whitespace-pre-wrap select-all">
+                  {streamedReasoning}
+                  {isEvaluating && (
+                    <span className="inline-block w-2 h-4 bg-purple-400 animate-pulse ml-1 align-middle" />
+                  )}
+                </div>
+              )}
+
+              {/* Error Box if any */}
+              {streamError && (
+                <div className="p-3 rounded-lg bg-rose-950/30 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                  <span>Streaming error: {streamError}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Multi-Vector Semantic Match Breakdown & Verbatim Evidence Card */}
           {(() => {

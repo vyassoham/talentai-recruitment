@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from main import app
 from core.database import get_db
 from core.auth import get_current_user
-from models.all_models import User, UserRole
+from models.all_models import User, UserRole, Candidate, JobRequirement
 from unittest.mock import MagicMock, patch
 from services.ai.reranker import CandidateEvaluation, RequirementAssessment
 
@@ -130,6 +130,71 @@ def test_evaluate_candidate_api():
     assert data["ai_evaluation"]["overall_score"] == 0.88
     assert data["ai_evaluation"]["hiring_verdict"] == "Highly Recommended"
     
+    app.dependency_overrides.clear()
+
+def test_stream_evaluate_candidate_api():
+    mock_db = MagicMock()
+    mock_cand = MagicMock()
+    mock_cand.id = 1
+    mock_cand.name = "Test Candidate"
+    mock_cand.current_title = "Senior Python Engineer"
+    mock_cand.total_experience_years = 6.0
+    mock_cand.location = "Bangalore"
+    mock_cand.current_company = "TechCorp"
+    mock_cand.skills = []
+    mock_cand.external_evidence = None
+    mock_cand.organization_id = "org_test"
+
+    mock_doc = MagicMock()
+    mock_doc.normalized_text = "Senior Python developer with 6 years experience in FastAPI and PostgreSQL."
+
+    mock_job = MagicMock()
+    mock_job.id = 1
+    mock_job.title = "Senior Python Engineer"
+    mock_job.raw_description = "Looking for Senior Python Engineer"
+    mock_job.mandatory_skills = [{"canonical_skill_name": "Python"}]
+    mock_job.preferred_skills = []
+    mock_job.organization_id = "org_test"
+
+    def get_mock(model_cls, pk):
+        if model_cls == Candidate and pk == 1:
+            return mock_cand
+        if model_cls == JobRequirement and (pk == 1 or pk == "1"):
+            return mock_job
+        return None
+
+    mock_db.get.side_effect = get_mock
+    mock_db.query().filter().first.return_value = mock_doc
+
+    mock_user = User(id=1, email="recruiter@test.com", role=UserRole.RECRUITER.value, is_active=True, organization_id="org_test")
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    mock_provider = MagicMock()
+    mock_provider.model_name = "test-model"
+    mock_provider.stream_generate.return_value = iter([
+        "--- EVALUATION REASONING ---\n",
+        "The candidate has strong technical skills in Python and FastAPI. ",
+        "**Hiring Verdict: Highly Recommended.**\n\n",
+        "--- STRUCTURED DATA ---\n",
+        '```json\n{\n  "overall_score": 0.90,\n  "hiring_verdict": "Highly Recommended",\n  "reasoning_summary": "Strong technical skills in Python",\n  "key_strengths": ["Python", "FastAPI"],\n  "assessments": []\n}\n```'
+    ])
+
+    with patch("services.ai.reranker.get_ai_provider", return_value=mock_provider):
+        response = client.get(
+            "/api/v1/candidates/1/evaluate/stream?job_id=1",
+            headers={"X-API-Key": "dev-secret-api-key"}
+        )
+
+    assert response.status_code == 200
+    assert "text/event-stream" in response.headers["content-type"]
+    text = response.text
+    assert "data: " in text
+    assert "[DONE]" in text
+    assert "Highly Recommended" in text
+    assert "Python" in text
+
     app.dependency_overrides.clear()
 
 def test_candidate_resume_preview_api():

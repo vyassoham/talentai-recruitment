@@ -5,7 +5,7 @@ import time
 import requests
 import logging
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Type, TypeVar
+from typing import List, Dict, Any, Type, TypeVar, Generator
 from pydantic import BaseModel
 from core.config import settings
 
@@ -33,6 +33,12 @@ class AIProvider(ABC):
         Returns (Embedding_Vector, usage_metrics_dict)
         """
         pass
+
+    def stream_generate(self, prompt: str, system_prompt: str = "") -> Generator[str, None, None]:
+        """
+        Yields text chunks as they arrive from the LLM.
+        """
+        yield ""
         
     @property
     @abstractmethod
@@ -55,6 +61,18 @@ class MockProvider(AIProvider):
     def generate_embeddings(self, text: str) -> tuple[List[float], dict]:
         import random
         return [random.uniform(-1, 1) for _ in range(1536)], {"prompt_tokens": 5, "completion_tokens": 0}
+
+    def stream_generate(self, prompt: str, system_prompt: str = "") -> Generator[str, None, None]:
+        chunks = [
+            "--- EVALUATION REASONING ---\n",
+            "The candidate possesses strong core competencies with proven experience in technical software engineering. ",
+            "Their background highlights relevant hands-on experience meeting the target requirements.\n\n",
+            "**Hiring Verdict: Highly Recommended.**\n\n",
+            "--- STRUCTURED DATA ---\n",
+            '```json\n{\n  "overall_score": 0.88,\n  "hiring_verdict": "Highly Recommended",\n  "reasoning_summary": "Strong technical fit with solid software background.",\n  "key_strengths": ["Software Development", "System Architecture"],\n  "assessments": [\n    {"requirement": "Software Development", "evidence": "Demonstrated core technical skills", "assessment": "Meets", "confidence": 0.95}\n  ]\n}\n```'
+        ]
+        for c in chunks:
+            yield c
         
     @property
     def model_name(self) -> str:
@@ -217,6 +235,51 @@ class GeminiProvider(AIProvider):
                     return MockProvider().generate_embeddings(text)
                 raise AIProviderError(f"Gemini embedding failed: {e}", retryable=False)
 
+    def stream_generate(self, prompt: str, system_prompt: str = "") -> Generator[str, None, None]:
+        url = f"{self.base_url}/models/{self._model}:streamGenerateContent?alt=sse&key={self.api_key}"
+        parts = []
+        if system_prompt:
+            parts.append({"text": f"System Context:\n{system_prompt}\n\nUser Request:\n{prompt}"})
+        else:
+            parts.append({"text": prompt})
+
+        payload = {
+            "contents": [{"role": "user", "parts": parts}],
+            "generationConfig": {
+                "temperature": 0.1
+            }
+        }
+        key_attempts = max(1, len(self.api_keys))
+        for attempt in range(key_attempts):
+            try:
+                resp = requests.post(url, json=payload, stream=True, timeout=35)
+                if resp.status_code == 429 and self.rotate_key():
+                    url = f"{self.base_url}/models/{self._model}:streamGenerateContent?alt=sse&key={self.api_key}"
+                    continue
+                if resp.status_code != 200:
+                    raise AIProviderError(f"Gemini Streaming Error ({resp.status_code}): {resp.text}", retryable=False)
+
+                for line in resp.iter_lines():
+                    if line:
+                        decoded = line.decode('utf-8')
+                        if decoded.startswith('data: '):
+                            data = json.loads(decoded[6:])
+                            candidates = data.get("candidates", [])
+                            if candidates and candidates[0].get("content", {}).get("parts"):
+                                for part in candidates[0]["content"]["parts"]:
+                                    text = part.get("text", "")
+                                    if text:
+                                        yield text
+                return
+            except AIProviderError:
+                raise
+            except Exception as e:
+                logger.error(f"Gemini stream generation error: {e}", exc_info=True)
+                if attempt < key_attempts - 1 and self.rotate_key():
+                    url = f"{self.base_url}/models/{self._model}:streamGenerateContent?alt=sse&key={self.api_key}"
+                    continue
+                raise AIProviderError(f"Gemini stream generation failed: {e}", retryable=False)
+
 class OpenAILikeProvider(AIProvider):
     def __init__(self, api_key: str, base_url: str = None, model: str = None, embedding_model: str = None):
         import openai
@@ -273,6 +336,26 @@ class OpenAILikeProvider(AIProvider):
             raise AIProviderError(str(e), retryable=True)
         except Exception as e:
             raise AIProviderError(str(e), retryable=False)
+
+    def stream_generate(self, prompt: str, system_prompt: str = "") -> Generator[str, None, None]:
+        import openai
+        try:
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
+            response = self.client.chat.completions.create(
+                model=self._model,
+                messages=messages,
+                stream=True
+            )
+            for chunk in response:
+                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        except openai.RateLimitError as e:
+            raise AIProviderError(str(e), retryable=True)
+        except Exception as e:
+            raise AIProviderError(f"OpenAI streaming error: {e}", retryable=False)
 
 def get_ai_provider() -> AIProvider:
     provider_type = (settings.AI_PROVIDER or "gemini").lower()

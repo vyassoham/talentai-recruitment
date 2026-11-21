@@ -3,8 +3,8 @@ import os
 import re
 import asyncio
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response, FileResponse
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response, FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, selectinload, defer
 from sqlalchemy import or_
@@ -397,18 +397,12 @@ def submit_feedback(
 class EvaluateCandidateRequest(BaseModel):
     job_id: Optional[str] = Field(default="1", min_length=0, max_length=100)
 
-@router.post("/candidates/{candidate_id}/evaluate")
-async def evaluate_single_candidate(
+def _resolve_candidate_and_job(
     candidate_id: int,
-    request: Optional[EvaluateCandidateRequest] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("RECRUITER"))
-):
-    """
-    On-demand deep AI evaluation for a single candidate using Gemini LLM.
-    Quotes verbatim evidence from CV, assesses requirements, and checks hallucinations.
-    Strictly enforces tenant isolation across candidates and job descriptions.
-    """
+    job_id_param: Optional[str],
+    db: Session,
+    current_user: User
+) -> tuple[Candidate, JobRequirement]:
     candidate = db.get(Candidate, candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
@@ -420,13 +414,12 @@ async def evaluate_single_candidate(
 
     # Enforce multi-tenant job requirement isolation
     job = None
-    if request and request.job_id:
-        job_id = request.job_id
-        if job_id.isdigit():
-            job = db.get(JobRequirement, int(job_id))
+    if job_id_param:
+        if str(job_id_param).isdigit():
+            job = db.get(JobRequirement, int(job_id_param))
         if not job:
             try:
-                job = db.get(JobRequirement, job_id)
+                job = db.get(JobRequirement, job_id_param)
             except Exception:
                 pass
         if not job:
@@ -443,12 +436,62 @@ async def evaluate_single_candidate(
 
     if not job:
         job = JobRequirement(
-            id=request.job_id if (request and request.job_id) else "default",
+            id=job_id_param if job_id_param else "default",
             organization_id=getattr(current_user, "organization_id", None) or "org_talentai_default",
             title="Software Engineering Professional",
             mandatory_skills=[{"canonical_skill_name": "Software Development"}],
             min_experience_years=0.0
         )
+    return candidate, job
+
+@router.get("/candidates/{candidate_id}/evaluate/stream")
+@router.post("/candidates/{candidate_id}/evaluate/stream")
+async def stream_evaluate_candidate_api(
+    candidate_id: int,
+    job_id: Optional[str] = Query(default=None),
+    request: Optional[EvaluateCandidateRequest] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("RECRUITER"))
+):
+    """
+    Server-Sent Events (SSE) streaming on-demand deep AI evaluation for a candidate.
+    Streams typewriter-style candidate assessment tokens in real-time, followed by
+    audited evidence and final structured scoring.
+    """
+    resolved_job_id = (request.job_id if request and request.job_id else None) or job_id or "1"
+    candidate, job = _resolve_candidate_and_job(candidate_id, resolved_job_id, db, current_user)
+    
+    reranker = AIReranker(db)
+
+    async def sse_stream_generator():
+        for event in reranker.stream_evaluate_candidate(candidate_id, job):
+            yield event
+            await asyncio.sleep(0)  # Yield control to event loop for immediate network flush
+
+    return StreamingResponse(
+        sse_stream_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+@router.post("/candidates/{candidate_id}/evaluate")
+async def evaluate_single_candidate(
+    candidate_id: int,
+    request: Optional[EvaluateCandidateRequest] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("RECRUITER"))
+):
+    """
+    On-demand deep AI evaluation for a single candidate using Gemini LLM.
+    Quotes verbatim evidence from CV, assesses requirements, and checks hallucinations.
+    Strictly enforces tenant isolation across candidates and job descriptions.
+    """
+    resolved_job_id = request.job_id if request and request.job_id else None
+    candidate, job = _resolve_candidate_and_job(candidate_id, resolved_job_id, db, current_user)
         
     c_dict = {
         "candidate_id": str(candidate.id),
@@ -485,7 +528,7 @@ async def evaluate_single_candidate(
     
     return {
         "candidate_id": candidate_id,
-        "job_id": job_id,
+        "job_id": str(job.id),
         "ai_evaluation": evaluated.get("ai_evaluation"),
         "composite_score": evaluated.get("composite_score"),
         "final_score": evaluated.get("final_score"),
