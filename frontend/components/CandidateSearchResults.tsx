@@ -394,13 +394,21 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
         </div>
 
         <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg p-4 space-y-1">
-          <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">
-            Total Pipeline Time
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider block">
+              Total Pipeline Time
+            </span>
+            {searchResponse?.telemetry?.cache_hit && (
+              <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 shadow-[0_0_8px_rgba(16,185,129,0.3)]">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                ⚡ {searchResponse.telemetry.cache_tier || "Redis"} Cache Hit
+              </span>
+            )}
+          </div>
           <span
-            className={`text-2xl font-semibold font-mono block transition-colors ${searchResponse ? "text-indigo-300 drop-shadow-[0_0_10px_rgba(99,102,241,0.6)]" : "text-zinc-600"}`}
+            className={`text-2xl font-semibold font-mono block transition-colors ${searchResponse ? (searchResponse.telemetry.cache_hit ? "text-emerald-300 drop-shadow-[0_0_10px_rgba(16,185,129,0.6)]" : "text-indigo-300 drop-shadow-[0_0_10px_rgba(99,102,241,0.6)]") : "text-zinc-600"}`}
           >
-            {searchResponse?.telemetry?.total_search_latency_sec
+            {searchResponse?.telemetry?.total_search_latency_sec !== undefined
               ? `${searchResponse.telemetry.total_search_latency_sec}s`
               : "--"}
           </span>

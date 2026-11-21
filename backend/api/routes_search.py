@@ -18,6 +18,7 @@ from services.search.retrieval import HybridRetrievalEngine
 from services.ai.reranker import AIReranker
 from services.ai.provider import get_ai_provider
 from services.documents.resume_generator import generate_pdf_resume
+from core.search_cache import search_cache
 
 router = APIRouter()
 
@@ -176,6 +177,30 @@ async def search_candidates(
     _rate_check = Depends(rate_limit(max_requests=60, window_seconds=60))
 ):
     start_total = time.time()
+
+    # 0. High-Speed Two-Tier Search Cache Check (Redis + In-Memory fallback)
+    org_id = getattr(current_user, "organization_id", None) or "global"
+    is_fast = request.fast_mode if request.fast_mode is not None else settings.FAST_SEARCH_DEFAULT
+    top_n = request.rerank_top_n if request.rerank_top_n is not None else (0 if is_fast else (settings.RERANK_TOP_N or 1))
+
+    cache_key = search_cache.build_cache_key(
+        org_id=org_id,
+        job_id=request.job_id,
+        query=request.query,
+        top_k=request.top_k,
+        fast_mode=is_fast,
+        rerank_top_n=top_n
+    )
+
+    cached_response = search_cache.get(cache_key)
+    if cached_response:
+        cached_response = dict(cached_response)
+        telemetry = dict(cached_response.get("telemetry", {}))
+        telemetry["cache_hit"] = True
+        telemetry["cache_tier"] = search_cache.last_tier_used or "cache"
+        telemetry["total_search_latency_sec"] = round(time.time() - start_total, 4)
+        cached_response["telemetry"] = telemetry
+        return cached_response
     
     # 1. Fetch or synthesize Job Requirement
     job = None
@@ -334,7 +359,7 @@ async def search_candidates(
 
     total_latency = time.time() - start_total
     
-    return {
+    response_payload = {
         "job_id": request.job_id or "1",
         "query": request.query,
         "eligible_count": len(eligible_results),
@@ -343,10 +368,36 @@ async def search_candidates(
             "eligibility_latency_sec": round(elig_latency, 4),
             "retrieval_ranking_latency_sec": round(retrieval_latency, 4),
             "rerank_latency_sec": round(rerank_latency, 4),
-            "total_search_latency_sec": round(total_latency, 4)
+            "total_search_latency_sec": round(total_latency, 4),
+            "cache_hit": False
         },
         "candidates": final_candidates
     }
+
+    # Store in Redis and in-memory cache for repeat requests
+    search_cache.set(cache_key, response_payload)
+
+    return response_payload
+
+@router.post("/search/cache/clear")
+def clear_search_cache(
+    current_user: User = Depends(require_role("RECRUITER"))
+):
+    """
+    Clears search cache entries for current organization (or all organizations if Admin).
+    """
+    org_id = None if current_user.role == "ADMIN" else getattr(current_user, "organization_id", None)
+    cleared = search_cache.invalidate(org_id=org_id)
+    return {"status": "success", "cleared_entries": cleared, "org_id": org_id or "all"}
+
+@router.get("/search/cache/stats")
+def get_search_cache_stats(
+    current_user: User = Depends(require_role("RECRUITER"))
+):
+    """
+    Returns search cache performance statistics, hit/miss metrics, and Redis status.
+    """
+    return search_cache.get_stats()
 
 class FeedbackRequest(BaseModel):
     job_id: str = Field(..., min_length=1, max_length=100)

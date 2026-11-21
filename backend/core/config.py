@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     RERANK_CONCURRENCY: int = 3
     FAST_SEARCH_DEFAULT: bool = True
     ENABLE_LLM_JUDGE: bool = False # Fast deterministic quote validation during reranking to eliminate dual sequential LLMs and 429 quota exhaustion
+    SEARCH_CACHE_ENABLED: bool = True # In-memory + Redis TTL cache for repetitive search queries
+    SEARCH_CACHE_TTL_SECONDS: int = 300 # 5-10 minutes TTL (default: 300s)
 
     # Storage & Uploads
     STORAGE_BACKEND: str = "supabase" # "supabase", "local", "s3", or "gcs"

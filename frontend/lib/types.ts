@@ -96,6 +96,8 @@ export interface SearchTelemetry {
   retrieval_ranking_latency_sec: number;
   rerank_latency_sec: number;
   total_search_latency_sec: number;
+  cache_hit?: boolean;
+  cache_tier?: string;
 }
 
 export interface SearchResponse {

@@ -244,13 +244,13 @@ class LocalThreadQueue(QueueInterface):
 
         with SessionLocal() as db:
             job = db.get(BackgroundJob, job_id)
-            if not job or job.status == "CANCELLED":
+            if not job:
                 return
-            
+
             with self._lock:
-                if job_id in self._cancelled_jobs:
+                if job_id in self._cancelled_jobs or job.status == "CANCELLED":
                     return
-                    
+
             job.status = "PROCESSING"
             db.commit()
 

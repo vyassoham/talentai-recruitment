@@ -209,6 +209,13 @@ def delete_candidate(
         
     db.delete(candidate)
     db.commit()
+    
+    try:
+        from core.search_cache import search_cache
+        search_cache.invalidate(org_id=getattr(candidate, "organization_id", None))
+    except Exception:
+        pass
+
     return {"status": "SUCCESS", "message": "Candidate completely erased"}
 
 from pydantic import BaseModel, Field
