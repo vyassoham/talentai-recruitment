@@ -15,7 +15,41 @@ from core.database import engine
 
 @pytest.fixture(scope="module")
 def db_connection():
-    raw_conn = engine.raw_connection()
+    if engine.dialect.name != "postgresql":
+        pytest.skip("RLS policy verification requires a PostgreSQL database.")
+
+    try:
+        raw_conn = engine.raw_connection()
+    except Exception as e:
+        pytest.skip(f"Database connection unavailable: {e}")
+
+    cursor = raw_conn.cursor()
+    try:
+        cursor.execute("SELECT 1 FROM pg_roles WHERE rolname = 'anon';")
+        has_anon = cursor.fetchone()
+        cursor.execute("SELECT 1 FROM pg_roles WHERE rolname = 'authenticated';")
+        has_auth = cursor.fetchone()
+        cursor.execute("SELECT rolbypassrls FROM pg_roles WHERE rolname = CURRENT_USER;")
+        role_info = cursor.fetchone()
+        has_bypass = bool(role_info and role_info[0])
+
+        if not (has_anon and has_auth and has_bypass):
+            cursor.close()
+            raw_conn.close()
+            pytest.skip(
+                "Active database does not have Supabase multi-tenant RLS roles or BypassRLS configured. "
+                "Skipping live Supabase RLS verification in test/CI container."
+            )
+    except Exception as e:
+        cursor.close()
+        raw_conn.close()
+        pytest.skip(f"Database does not support Supabase RLS inspection: {e}")
+    finally:
+        try:
+            cursor.close()
+        except Exception:
+            pass
+
     yield raw_conn
     raw_conn.close()
 

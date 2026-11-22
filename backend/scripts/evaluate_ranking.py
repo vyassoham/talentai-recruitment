@@ -50,10 +50,11 @@ def setup_test_db(db: Session, dataset: dict):
             "NDCG evaluation must run against an isolated test container or with an explicit test DB."
         )
 
-    from models.all_models import EvaluationEvidence, RecruiterFeedback, IngestionJob
+    from models.all_models import EvaluationEvidence, RecruiterFeedback, IngestionJob, CandidateSectionEmbedding
     # Clear DB in proper foreign key order
     db.query(EvaluationEvidence).delete()
     db.query(RecruiterFeedback).delete()
+    db.query(CandidateSectionEmbedding).delete()
     db.query(JobRequirement).delete()
     db.query(CandidateSkill).delete()
     db.query(IngestionJob).delete()
