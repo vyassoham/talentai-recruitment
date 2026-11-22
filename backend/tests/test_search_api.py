@@ -197,6 +197,68 @@ def test_stream_evaluate_candidate_api():
 
     app.dependency_overrides.clear()
 
+def test_stream_evaluate_candidate_custom_job_id():
+    """Verify that passing custom job_id dynamically evaluates against that specific job requirement."""
+    mock_db = MagicMock()
+    mock_cand = MagicMock()
+    mock_cand.id = 1
+    mock_cand.name = "Custom Job Candidate"
+    mock_cand.current_title = "Backend Engineer"
+    mock_cand.total_experience_years = 5.0
+    mock_cand.location = "Hyderabad"
+    mock_cand.current_company = "Tech"
+    mock_cand.skills = []
+    mock_cand.external_evidence = None
+    mock_cand.organization_id = "org_test"
+
+    mock_doc = MagicMock()
+    mock_doc.normalized_text = "Backend engineer skilled in Golang and Kubernetes."
+
+    mock_job_custom = MagicMock()
+    mock_job_custom.id = 43
+    mock_job_custom.title = "Lead Backend Architect"
+    mock_job_custom.raw_description = "Looking for Lead Backend Architect"
+    mock_job_custom.mandatory_skills = [{"canonical_skill_name": "Golang"}]
+    mock_job_custom.preferred_skills = []
+    mock_job_custom.organization_id = "org_test"
+
+    def get_mock(model_cls, pk):
+        if model_cls == Candidate and pk == 1:
+            return mock_cand
+        if model_cls == JobRequirement and (pk == 43 or pk == "43"):
+            return mock_job_custom
+        return None
+
+    mock_db.get.side_effect = get_mock
+    mock_db.query().filter().first.return_value = mock_doc
+
+    mock_user = User(id=1, email="recruiter@test.com", role=UserRole.RECRUITER.value, is_active=True, organization_id="org_test")
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+
+    mock_provider = MagicMock()
+    mock_provider.model_name = "test-model"
+    mock_provider.stream_generate.return_value = iter([
+        "--- EVALUATION REASONING ---\n",
+        "Candidate evaluated specifically against Lead Backend Architect.\n",
+        "--- STRUCTURED DATA ---\n",
+        '```json\n{\n  "overall_score": 0.85,\n  "hiring_verdict": "Recommended",\n  "reasoning_summary": "Strong fit for Lead Backend Architect",\n  "key_strengths": ["Golang"],\n  "assessments": []\n}\n```'
+    ])
+
+    with patch("services.ai.reranker.get_ai_provider", return_value=mock_provider):
+        response = client.get(
+            "/api/v1/candidates/1/evaluate/stream?job_id=43",
+            headers={"X-API-Key": "dev-secret-api-key"}
+        )
+
+    assert response.status_code == 200
+    assert 'data: {"type": "status"' in response.text
+    assert 'data: {"type": "chunk"' in response.text
+    assert "[DONE]" in response.text
+
+    app.dependency_overrides.clear()
+
 def test_candidate_resume_preview_api():
     mock_db = MagicMock()
     mock_cand = MagicMock()

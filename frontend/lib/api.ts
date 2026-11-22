@@ -6,7 +6,8 @@ import {
   AICostReport,
   PassiveCandidate,
   StaleCandidateInfo,
-  RequirementItem
+  RequirementItem,
+  JobRequirementData
 } from "./types";
 
 /**
@@ -199,6 +200,10 @@ class ApiClient {
     return this.request(`/jobs/${jobId}/status`);
   }
 
+  async getJobs(limit: number = 50, offset: number = 0): Promise<{ jobs: JobRequirementData[]; total: number }> {
+    return this.request(`/jobs?limit=${limit}&offset=${offset}`);
+  }
+
   // ==================== Resume Ingestion ====================
 
   async uploadCV(file: File): Promise<{ status: string; job_id: string; document_id?: number }> {
@@ -249,17 +254,17 @@ class ApiClient {
     });
   }
 
-  async evaluateCandidate(candidateId: number, jobId: string = "1") {
+  async evaluateCandidate(candidateId: number, jobId?: string) {
     return this.request(`/candidates/${candidateId}/evaluate`, {
       method: "POST",
-      body: JSON.stringify({ job_id: jobId }),
+      body: JSON.stringify(jobId ? { job_id: jobId } : {}),
     });
   }
 
   async streamEvaluateCandidate(
     candidateId: number,
-    jobId: string = "1",
-    callbacks: {
+    jobId?: string,
+    callbacks?: {
       onStatus?: (message: string) => void;
       onChunk?: (text: string) => void;
       onComplete?: (result: any) => void;
@@ -275,7 +280,8 @@ class ApiClient {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const url = `${this.baseUrl}/candidates/${candidateId}/evaluate/stream?job_id=${encodeURIComponent(jobId)}`;
+    const queryParam = jobId ? `?job_id=${encodeURIComponent(jobId)}` : "";
+    const url = `${this.baseUrl}/candidates/${candidateId}/evaluate/stream${queryParam}`;
 
     try {
       const response = await fetch(url, {

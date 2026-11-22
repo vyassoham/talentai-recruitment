@@ -18,21 +18,26 @@ import {
   MapPin,
   CheckCircle2,
   Award,
-  Check
+  Check,
+  ChevronDown
 } from "lucide-react";
-import { CandidateResult } from "../lib/types";
+import { CandidateResult, JobRequirementData } from "../lib/types";
 import { api } from "../lib/api";
 
 interface CandidateDetailModalProps {
   candidate: CandidateResult | null;
   onClose: () => void;
   onCandidateDeleted: (id: number) => void;
+  activeJobId?: string | null;
+  onJobChange?: (jobId: string) => void;
 }
 
 export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
   candidate,
   onClose,
-  onCandidateDeleted
+  onCandidateDeleted,
+  activeJobId,
+  onJobChange
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -47,6 +52,53 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
   const [streamingStatus, setStreamingStatus] = useState("");
   const [evalCompleted, setEvalCompleted] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
+
+  // Dynamic Job Selection State
+  const [selectedJobId, setSelectedJobId] = useState<string>(activeJobId || "1");
+  const [jobsList, setJobsList] = useState<JobRequirementData[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoadingJobs(true);
+    api.getJobs()
+      .then((res) => {
+        if (isMounted && res && res.jobs) {
+          setJobsList(res.jobs);
+          if (!activeJobId && res.jobs.length > 0) {
+            setSelectedJobId(String(res.jobs[0].id));
+            if (onJobChange) {
+              onJobChange(String(res.jobs[0].id));
+            }
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (isMounted) setIsLoadingJobs(false);
+      });
+    return () => { isMounted = false; };
+  }, []);
+
+  useEffect(() => {
+    if (activeJobId) {
+      setSelectedJobId(activeJobId);
+    }
+  }, [activeJobId]);
+
+  const handleJobSelectChange = (newJobId: string) => {
+    setSelectedJobId(newJobId);
+    if (onJobChange) {
+      onJobChange(newJobId);
+    }
+    setStreamedReasoning("");
+    setStreamingStatus("");
+    setEvalCompleted(false);
+    setStreamError(null);
+  };
+
+  const selectedJobObj = jobsList.find(j => String(j.id) === String(selectedJobId)) || 
+    (jobsList.length > 0 ? jobsList[0] : null);
 
   useEffect(() => {
     if (candidate) {
@@ -86,12 +138,13 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
   const handleDeepEvaluate = async () => {
     setIsEvaluating(true);
     setStreamedReasoning("");
-    setStreamingStatus("Connecting to Gemini AI Engine...");
+    const targetTitle = selectedJobObj?.title || `Job #${selectedJobId}`;
+    setStreamingStatus(`Evaluating against "${targetTitle}" with Gemini AI...`);
     setStreamError(null);
     setEvalCompleted(false);
 
     try {
-      await api.streamEvaluateCandidate(cand.candidate_id, "1", {
+      await api.streamEvaluateCandidate(cand.candidate_id, selectedJobId, {
         onStatus: (status) => {
           setStreamingStatus(status);
         },
@@ -109,7 +162,7 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
               match_reasons: res.match_reasons || prev.match_reasons,
             }));
             setEvalCompleted(true);
-            setStreamingStatus("Evaluation Complete");
+            setStreamingStatus(`Evaluation Complete for "${targetTitle}"`);
           }
         },
         onError: (err) => {
@@ -201,6 +254,71 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
                 {cand.eligibility_status || "PASS"}
               </span>
             </div>
+          </div>
+
+          {/* Active Job Requirement Target Selector */}
+          <div className="p-3.5 bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-black/60 border border-purple-500/30 rounded-xl space-y-2.5 shadow-md shadow-purple-950/20">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-purple-400" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-purple-200">
+                  Target Evaluation Job
+                </span>
+                {selectedJobId && (
+                  <span className="px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-[10px] font-mono text-purple-300">
+                    ID #{selectedJobId}
+                  </span>
+                )}
+              </div>
+
+              {/* Dropdown Selector */}
+              <div className="relative min-w-[240px]">
+                <select
+                  value={selectedJobId}
+                  onChange={(e) => handleJobSelectChange(e.target.value)}
+                  disabled={isEvaluating || isLoadingJobs}
+                  className="w-full bg-black/80 border border-purple-500/40 hover:border-purple-400 text-zinc-100 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-400 cursor-pointer appearance-none pr-8 font-medium shadow-inner disabled:opacity-50"
+                >
+                  {jobsList.length > 0 ? (
+                    jobsList.map((job) => (
+                      <option key={job.id} value={job.id} className="bg-[#141418] text-zinc-200">
+                        {job.title || `Job #${job.id}`} (ID #{job.id})
+                      </option>
+                    ))
+                  ) : (
+                    <option value={selectedJobId} className="bg-[#141418] text-zinc-200">
+                      {selectedJobId ? `Job #${selectedJobId}` : "Default Engineering Role"}
+                    </option>
+                  )}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-purple-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Active Job Requirement Summary Pill */}
+            {selectedJobObj && (
+              <div className="flex flex-wrap items-center gap-2 pt-1.5 text-[11px] text-zinc-400 border-t border-white/5">
+                <span className="text-zinc-500">
+                  Required Exp: <strong className="text-zinc-300">{selectedJobObj.min_experience_years || 0}+ yrs</strong>
+                </span>
+                {selectedJobObj.requirements && selectedJobObj.requirements.length > 0 && (
+                  <>
+                    <span className="text-zinc-600">•</span>
+                    <span className="text-zinc-500">Key Skills:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {selectedJobObj.requirements.slice(0, 5).map((req, idx) => (
+                        <span key={idx} className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-zinc-300 text-[10px]">
+                          {req.name}
+                        </span>
+                      ))}
+                      {selectedJobObj.requirements.length > 5 && (
+                        <span className="text-[10px] text-zinc-500">+{selectedJobObj.requirements.length - 5} more</span>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Contact Details & Action Banner (Highlighted prominently) */}

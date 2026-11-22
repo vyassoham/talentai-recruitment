@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy.orm import Session
 from core.database import get_db
 from core.queue import queue_client
@@ -64,6 +64,53 @@ def parse_job(
         return {"status": "COMPLETED", "job_id": str(job.id), "requirements": reqs}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/jobs")
+def list_jobs(
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("RECRUITER"))
+):
+    """
+    List all available Job Requirements for the authenticated user's organization.
+    Supports pagination and multi-tenant scoping.
+    """
+    query = db.query(JobRequirement)
+    if current_user.role != "ADMIN" and getattr(current_user, "organization_id", None):
+        query = query.filter(
+            (JobRequirement.organization_id == current_user.organization_id) |
+            (JobRequirement.organization_id.is_(None))
+        )
+    total = query.count()
+    jobs = query.order_by(JobRequirement.id.desc()).offset(offset).limit(limit).all()
+
+    result = []
+    for j in jobs:
+        reqs = []
+        for m in (j.mandatory_skills or []):
+            skill_name = m.get("canonical_skill_name") if isinstance(m, dict) else str(m)
+            if skill_name:
+                reqs.append({"name": skill_name, "type": "MANDATORY", "weight": 1.0})
+        for p in (j.preferred_skills or []):
+            skill_name = p.get("canonical_skill_name") if isinstance(p, dict) else str(p)
+            if skill_name:
+                reqs.append({"name": skill_name, "type": "PREFERRED", "weight": 0.5})
+
+        result.append({
+            "id": str(j.id),
+            "job_id": str(j.id),
+            "title": j.title or f"Job #{j.id}",
+            "raw_description": j.raw_description[:300] if j.raw_description else "",
+            "min_experience_years": j.min_experience_years or 0.0,
+            "location_requirements": j.location_requirements or "",
+            "requirements": reqs,
+            "mandatory_skills": j.mandatory_skills or [],
+            "preferred_skills": j.preferred_skills or [],
+            "organization_id": j.organization_id,
+            "created_at": j.created_at.isoformat() if j.created_at else None,
+        })
+    return {"jobs": result, "total": total}
 
 @router.get("/jobs/{job_id}/status")
 def get_job_status(

@@ -465,12 +465,13 @@ def _resolve_candidate_and_job(
 
     # Enforce multi-tenant job requirement isolation
     job = None
-    if job_id_param:
-        if str(job_id_param).isdigit():
-            job = db.get(JobRequirement, int(job_id_param))
+    if job_id_param and str(job_id_param).strip() and str(job_id_param).strip().lower() not in ["null", "undefined", "none", ""]:
+        clean_param = str(job_id_param).strip()
+        if clean_param.isdigit():
+            job = db.get(JobRequirement, int(clean_param))
         if not job:
             try:
-                job = db.get(JobRequirement, job_id_param)
+                job = db.get(JobRequirement, clean_param)
             except Exception:
                 pass
         if not job:
@@ -483,7 +484,7 @@ def _resolve_candidate_and_job(
         job_q = db.query(JobRequirement)
         if current_user.role != "ADMIN" and getattr(current_user, "organization_id", None):
             job_q = job_q.filter(JobRequirement.organization_id == current_user.organization_id)
-        job = job_q.order_by(JobRequirement.created_at.desc()).first()
+        job = job_q.order_by(JobRequirement.id.desc()).first()
 
     if not job:
         job = JobRequirement(
@@ -509,7 +510,7 @@ async def stream_evaluate_candidate_api(
     Streams typewriter-style candidate assessment tokens in real-time, followed by
     audited evidence and final structured scoring.
     """
-    resolved_job_id = (request.job_id if request and request.job_id else None) or job_id or "1"
+    resolved_job_id = (request.job_id if request and request.job_id else None) or job_id
     candidate, job = _resolve_candidate_and_job(candidate_id, resolved_job_id, db, current_user)
     
     reranker = AIReranker(db)

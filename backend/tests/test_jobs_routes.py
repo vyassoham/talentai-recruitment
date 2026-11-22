@@ -60,3 +60,27 @@ def test_get_job_status_not_found(recruiter_headers):
     res = client.get("/api/v1/jobs/99999999/status", headers=recruiter_headers)
     assert res.status_code == 404
     assert res.json()["detail"] == "Job not found"
+
+def test_list_jobs_endpoint(recruiter_headers):
+    """Verify GET /api/v1/jobs returns list of jobs with required fields and total count."""
+    res = client.get("/api/v1/jobs", headers=recruiter_headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert "jobs" in data
+    assert "total" in data
+    assert isinstance(data["jobs"], list)
+    assert data["total"] >= len(data["jobs"])
+
+    if len(data["jobs"]) > 0:
+        job = data["jobs"][0]
+        assert "id" in job
+        assert "title" in job
+        assert "requirements" in job
+        assert "min_experience_years" in job
+
+def test_list_jobs_pagination(recruiter_headers):
+    """Verify limit and offset work properly on GET /api/v1/jobs."""
+    res = client.get("/api/v1/jobs?limit=2&offset=0", headers=recruiter_headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data["jobs"]) <= 2

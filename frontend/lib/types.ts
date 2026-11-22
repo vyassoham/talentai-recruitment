@@ -19,10 +19,16 @@ export interface RequirementItem {
 
 export interface JobRequirementData {
   id: string;
+  job_id?: string;
   title: string;
   raw_description: string;
   min_experience_years?: number;
+  location_requirements?: string;
   requirements: RequirementItem[];
+  mandatory_skills?: Array<{ canonical_skill_name: string } | string>;
+  preferred_skills?: Array<{ canonical_skill_name: string } | string>;
+  organization_id?: string;
+  created_at?: string;
 }
 
 export interface IngestionJobStatus {

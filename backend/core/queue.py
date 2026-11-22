@@ -250,9 +250,8 @@ class LocalThreadQueue(QueueInterface):
             with self._lock:
                 if job_id in self._cancelled_jobs or job.status == "CANCELLED":
                     return
-
-            job.status = "PROCESSING"
-            db.commit()
+                job.status = "PROCESSING"
+                db.commit()
 
             try:
                 result = task_func(job_id=job_id, **kwargs)
@@ -283,6 +282,9 @@ class LocalThreadQueue(QueueInterface):
                         del self._active_threads[job_id]
 
     def get_status(self, job_id: str) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            is_cancelled = job_id in self._cancelled_jobs
+
         with SessionLocal() as db:
             job = db.get(BackgroundJob, job_id)
             if not job:
@@ -290,7 +292,7 @@ class LocalThreadQueue(QueueInterface):
             return {
                 "id": job.id,
                 "job_type": job.job_type,
-                "status": job.status,
+                "status": "CANCELLED" if is_cancelled else job.status,
                 "payload": job.payload,
                 "result": job.result,
                 "error": job.error_message,
@@ -302,17 +304,17 @@ class LocalThreadQueue(QueueInterface):
         with self._lock:
             self._cancelled_jobs.add(job_id)
 
-        with SessionLocal() as db:
-            job = db.get(BackgroundJob, job_id)
-            if not job:
-                return False
-                
-            if job.status in ["COMPLETED", "FAILED"]:
-                return False
-                
-            job.status = "CANCELLED"
-            db.commit()
-            return True
+            with SessionLocal() as db:
+                job = db.get(BackgroundJob, job_id)
+                if not job:
+                    return False
+                    
+                if job.status in ["COMPLETED", "FAILED"]:
+                    return False
+                    
+                job.status = "CANCELLED"
+                db.commit()
+                return True
 
     def retry(self, job_id: str, task_func: Optional[Callable] = None) -> bool:
         with self._lock:

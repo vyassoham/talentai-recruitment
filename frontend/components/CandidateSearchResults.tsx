@@ -18,12 +18,13 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { CandidateResult, SearchResponse } from "../lib/types";
+import { CandidateResult, SearchResponse, JobRequirementData } from "../lib/types";
 import { api } from "../lib/api";
 
 interface CandidateSearchResultsProps {
   activeJobId: string | null;
   onSelectCandidate: (candidate: CandidateResult) => void;
+  onJobChange?: (jobId: string) => void;
 }
 
 const SUGGESTED_QUERIES = [
@@ -50,7 +51,21 @@ function getPageNumbers(current: number, total: number): (number | string)[] {
 export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
   activeJobId,
   onSelectCandidate,
+  onJobChange,
 }) => {
+  const [jobsList, setJobsList] = useState<JobRequirementData[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.getJobs(20)
+      .then((res) => {
+        if (isMounted && res && res.jobs) {
+          setJobsList(res.jobs);
+        }
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
   const [searchQuery, setSearchQuery] = useState(
     "Senior Python backend developer with FastAPI, pgvector, and distributed systems experience",
   );
@@ -325,11 +340,28 @@ export const CandidateSearchResults: React.FC<CandidateSearchResultsProps> = ({
                 </button>
               </div>
 
-              <div className="flex items-center justify-between p-2.5 bg-transparent rounded border border-white/10 text-zinc-400">
+              <div className="flex items-center justify-between p-2.5 bg-transparent rounded border border-white/10 text-zinc-400 gap-2">
                 <span>Active Job Context</span>
-                <span className="font-mono text-zinc-200 font-medium">
-                  Job #{activeJobId || "1"}
-                </span>
+                {jobsList.length > 0 && onJobChange ? (
+                  <div className="relative">
+                    <select
+                      value={activeJobId || String(jobsList[0].id)}
+                      onChange={(e) => onJobChange(e.target.value)}
+                      className="bg-black/80 border border-white/20 text-zinc-200 text-xs rounded px-2.5 py-1 pr-6 appearance-none focus:outline-none focus:border-purple-400 cursor-pointer font-medium"
+                    >
+                      {jobsList.map((j) => (
+                        <option key={j.id} value={j.id} className="bg-[#141418] text-zinc-200">
+                          {j.title || `Job #${j.id}`} (#{j.id})
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3 h-3 text-zinc-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                ) : (
+                  <span className="font-mono text-zinc-200 font-medium">
+                    {jobsList.find(j => String(j.id) === String(activeJobId))?.title || `Job #${activeJobId || "1"}`}
+                  </span>
+                )}
               </div>
             </div>
           )}

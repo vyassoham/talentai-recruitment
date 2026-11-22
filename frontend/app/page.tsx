@@ -19,7 +19,7 @@ export default function Home() {
   const [activeJobId, setActiveJobId] = useState<string | null>("1");
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateResult | null>(null);
 
-  // Transparent auto-authentication on mount
+  // Transparent auto-authentication & initial job resolution on mount
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -30,6 +30,13 @@ export default function Home() {
         try {
           await api.seedAdmin();
           await api.login("admin@recruit.ai", "admin_password");
+        } catch (_) {}
+      } finally {
+        try {
+          const res = await api.getJobs(10);
+          if (res && res.jobs && res.jobs.length > 0) {
+            setActiveJobId((prev) => (prev && prev !== "1" ? prev : String(res.jobs[0].id)));
+          }
         } catch (_) {}
       }
     };
@@ -62,6 +69,7 @@ export default function Home() {
             <CandidateSearchResults
               activeJobId={activeJobId}
               onSelectCandidate={(cand) => setSelectedCandidate(cand)}
+              onJobChange={(newId) => setActiveJobId(newId)}
             />
           )}
 
@@ -89,6 +97,8 @@ export default function Home() {
           candidate={selectedCandidate}
           onClose={() => setSelectedCandidate(null)}
           onCandidateDeleted={() => setSelectedCandidate(null)}
+          activeJobId={activeJobId}
+          onJobChange={(newId) => setActiveJobId(newId)}
         />
 
         {/* Minimal Footer */}
