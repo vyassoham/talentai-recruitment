@@ -19,8 +19,12 @@ import {
  * 3. Default production fallback (https://talentai-recruitment.onrender.com/api/v1).
  */
 export function getApiBaseUrl(): string {
-  if (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL) {
-    const envUrl = process.env.NEXT_PUBLIC_API_URL.trim();
+  const configuredUrl = typeof process !== "undefined" 
+    ? (process.env?.NEXT_PUBLIC_EDGE_PROXY_URL || process.env?.NEXT_PUBLIC_API_URL)
+    : undefined;
+
+  if (configuredUrl) {
+    const envUrl = configuredUrl.trim();
     if (envUrl) {
       return envUrl.replace(/\/+$/, "");
     }
@@ -403,6 +407,15 @@ class ApiClient {
 
   async getCandidatesCount(): Promise<{ total_amount: number }> {
     return this.request("/candidates/count");
+  }
+
+  async getRegionTelemetry(): Promise<{
+    status: string;
+    database: { host: string; region: string; ping_latency_ms: number; port: number; tcp_keepalive: boolean };
+    server: { region: string; environment: string };
+    edge_optimization: { cloudflare_edge_ready: boolean; target_edge_pop: string };
+  }> {
+    return this.request("/system/region-telemetry");
   }
 }
 

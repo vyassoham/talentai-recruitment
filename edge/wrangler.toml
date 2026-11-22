@@ -1,0 +1,6 @@
+name = "talentai-edge-proxy"
+main = "cloudflare-worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+ORIGIN_BACKEND_URL = "https://talentai-recruitment.onrender.com"

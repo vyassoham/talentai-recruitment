@@ -144,3 +144,23 @@ def test_ai_cost_analytics_aggregation():
     assert len(data["operations"]) == 2
 
     app.dependency_overrides.clear()
+
+def test_system_region_telemetry():
+    """Verify GET /api/v1/system/region-telemetry returns database and edge routing regional metadata."""
+    mock_db = MagicMock()
+    mock_db.execute.return_value.scalar.return_value = 1
+
+    app.dependency_overrides[get_db] = lambda: mock_db
+
+    response = client.get("/api/v1/system/region-telemetry")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert "database" in data
+    assert "host" in data["database"]
+    assert "ping_latency_ms" in data["database"]
+    assert data["database"]["tcp_keepalive"] is True
+    assert "edge_optimization" in data
+    assert data["edge_optimization"]["cloudflare_edge_ready"] is True
+
+    app.dependency_overrides.clear()
