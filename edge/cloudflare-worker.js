@@ -133,5 +133,20 @@ export default {
         }
       });
     }
+  },
+
+  /**
+   * Cloudflare Cron Trigger Keep-Alive Daemon
+   * Fires every 10 minutes to prevent Render free-tier inactivity sleep.
+   */
+  async scheduled(event, env, ctx) {
+    const originBackend = (env?.ORIGIN_BACKEND_URL || DEFAULT_ORIGIN).replace(/\/+$/, "");
+    const healthUrl = `${originBackend}/health`;
+    try {
+      const resp = await fetch(healthUrl, { method: "GET" });
+      console.log(`[Keep-Alive Cron] Pinged ${healthUrl} - Status: ${resp.status}`);
+    } catch (err) {
+      console.error(`[Keep-Alive Cron] Failed to ping ${healthUrl}: ${err.message}`);
+    }
   }
 };

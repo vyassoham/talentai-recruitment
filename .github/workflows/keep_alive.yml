@@ -1,0 +1,32 @@
+name: Render Free Tier Keep-Alive Warmup Daemon
+
+on:
+  schedule:
+    # Runs every 10 minutes to prevent Render free tier 15-minute inactivity sleep
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions dashboard
+
+jobs:
+  warmup:
+    name: Ping Render Backend Health Endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Ping Backend Health Endpoint
+        run: |
+          TARGET_URL="${{ secrets.RENDER_BACKEND_URL || 'https://talentai-recruitment.onrender.com' }}/health"
+          echo "Target Warmup URL: $TARGET_URL"
+          echo "Timestamp (UTC): $(date -u)"
+          
+          # Curl with up to 60s timeout and retry to handle any warming latency
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 --retry 3 --retry-delay 5 "$TARGET_URL")
+          echo "HTTP Response Status: $HTTP_STATUS"
+          
+          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 204 ]; then
+            echo "Render instance is active and warm! (Status: $HTTP_STATUS)"
+          else
+            echo "Warning: Backend responded with status $HTTP_STATUS"
+            # Try root endpoint as fallback
+            curl -s -o /dev/null -w "Root status: %{http_code}\n" "${{ secrets.RENDER_BACKEND_URL || 'https://talentai-recruitment.onrender.com' }}/"
+          fi

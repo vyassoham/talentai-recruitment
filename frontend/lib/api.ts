@@ -55,6 +55,13 @@ class ApiClient {
       const healthUrl = this.baseUrl.replace(/\/api\/v1\/?$/, "") + "/health";
       fetch(healthUrl, { method: "GET", mode: "cors" }).catch(() => {});
 
+      // Keep backend warm every 8 minutes while browser tab remains open
+      try {
+        setInterval(() => {
+          fetch(healthUrl, { method: "GET", mode: "cors" }).catch(() => {});
+        }, 8 * 60 * 1000);
+      } catch (_) {}
+
       // Auto-authenticate immediately if no token
       if (!this.token) {
         this.login("admin@recruit.ai", "admin_password").catch(() => {});
@@ -118,12 +125,13 @@ class ApiClient {
         headers,
       });
     } catch (networkErr: any) {
-      // Auto-retry up to 2 times with backoff on Render cold start or network hiccups
-      if (retryCount < 2) {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Auto-retry up to 4 times with progressive backoff on Render cold start or network hiccups (handles up to ~30s of waking)
+      if (retryCount < 4) {
+        const backoffMs = Math.min(1500 * Math.pow(1.6, retryCount), 6000);
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
         return this.request<T>(path, options, retryCount + 1);
       }
-      throw new Error(`Network connection error: ${networkErr.message || "Failed to reach server"}.`);
+      throw new Error(`Network connection error: ${networkErr.message || "Failed to reach server. The cloud backend may be starting up, please try again."}.`);
     }
 
     if (!response.ok) {
