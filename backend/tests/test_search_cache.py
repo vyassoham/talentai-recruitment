@@ -128,3 +128,50 @@ def test_search_endpoint_caching_flow():
     assert "misses" in stats
 
     app.dependency_overrides.clear()
+
+def test_horizontal_cross_pod_cache_sync():
+    """
+    Simulates two distinct horizontal server pods (Pod 1 & Pod 2) running in-memory
+    caching without Redis. Verifies that when Pod 1 invalidates an organization's cache,
+    Pod 2 detects the database invalidation token and purges its local cache.
+    """
+    # Initialize Pod 1 and Pod 2 as separate in-memory cache managers
+    pod1 = SearchCacheManager(redis_url="", default_ttl=60, sync_interval=0.0)
+    pod2 = SearchCacheManager(redis_url="", default_ttl=60, sync_interval=0.0)
+
+    org_test_id = f"org_horizontal_{int(time.time())}"
+    key1 = pod1.build_cache_key(org_test_id, "1", "Senior Python Dev", 50, True, 0)
+    key2 = pod2.build_cache_key(org_test_id, "1", "Senior Python Dev", 50, True, 0)
+    assert key1 == key2
+
+    sample_results = {"candidates": [{"id": 1, "name": "Alice"}], "total": 1}
+
+    # Both pods independently cache the result
+    pod1.set(key1, sample_results)
+    pod2.set(key2, sample_results)
+
+    # Initial state: Both pods have cache hits
+    assert pod1.get(key1) is not None
+    assert pod2.get(key2) is not None
+    assert len(pod2._local_cache) > 0
+
+    # Pod 1 triggers invalidation for the organization (e.g. candidate was added/deleted on Pod 1)
+    pod1.invalidate(org_id=org_test_id)
+
+    # Pod 1 is immediately cleared locally
+    assert pod1.get(key1) is None
+
+    # Pod 2 retrieves the query: with sync_interval=0.0, Pod 2 synchronizes with the DB token
+    # and automatically purges its local memory for org_test_id!
+    assert pod2.get(key2) is None
+    assert pod2.misses > 0
+
+    # Re-populate cache on Pod 2
+    pod2.set(key2, sample_results)
+    assert pod2.get(key2) is not None
+
+    # Pod 1 triggers a second invalidation (version increments from 1 -> 2)
+    pod1.invalidate(org_id=org_test_id)
+
+    # Pod 2 detects monotonic version increment (2 > 1) and purges again!
+    assert pod2.get(key2) is None

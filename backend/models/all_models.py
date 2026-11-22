@@ -310,3 +310,10 @@ class BackgroundJob(Base):
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
+class CacheInvalidationToken(Base):
+    __tablename__ = "cache_invalidation_tokens"
+
+    key = Column(String, primary_key=True, index=True) # e.g. organization_id or "__global__"
+    version = Column(Integer, default=1)
+    invalidated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
